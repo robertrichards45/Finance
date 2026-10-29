@@ -21,3 +21,7 @@ The test suite covers the retained helper modules, readiness gates, encrypted pe
 ## Writing review update
 
 See [writing-quality.md](writing-quality.md) for the separate editorial request, one repair/re-review cycle, exact evidence mapping, manual-edit checks and per-request quota. The deterministic suite now covers these gates; actual model acceptance remains distinct from mocked provider tests. Portal JavaScript and a malformed server-test expression were repaired so the customer screens and regression suite can run.
+
+## Live provider probe — October 29, 2026
+
+Railway deployment `aa814ced-a317-4e9a-b375-5349eca7743c` ran `scripts/verify-writing.js` successfully against the configured OpenAI provider. The hard-coded fictional federal Program Analyst application completed writing and a separate editorial request without repair, used 4,358 reported total tokens, and rendered all four files (one-page resume PDF and one-page cover PDF). Review of its logged fictional text confirmed the supplied 12-person scope and assisted role were retained; SQL was disclosed as a gap and requested as a clarification rather than invented. This was a server-side probe, not an email sign-in/Checkout/delivery acceptance test. Its requirement map also exposed an administrative date/hour instruction being paired with unrelated duties evidence; the follow-up calibration excludes such instructions from the experience map and has a regression test. The temporary Railway pre-deploy probe was removed after the test to avoid recurring provider calls on ordinary deployments.
