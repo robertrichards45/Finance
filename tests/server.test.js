@@ -16,7 +16,7 @@ test('sample uses the same branded header and footer as the site',async()=>{cons
 
 test('design studio serves interactive templates and placeholder-only previews',async()=>{const page=await (await fetch(base+'/templates')).text();const script=await (await fetch(base+'/templates.js')).text();assert.match(page,/template-gallery/);assert.match(page,/studio-palette/);assert.match(script,/mock-watermark/);assert.match(script,/resume-mock/);assert.doesNotMatch(script,/createObjectURL|\.download\s*=/);});
 
-test('public pricing clearly identifies prelaunch plans and recurring subscriptions',async()=>{const page=await (await fetch(base+'/')).text();for(const amount of ['$4.99','$12.99','$59.99'])assert.ok(page.includes(amount),amount);assert.match(page,/no auto-renewal/i);assert.match(page,/recurring if launched/i);assert.match(page,/not yet available/i);assert.doesNotMatch(page,/\$99|Per application; one-time/i);});
+test('public pricing clearly identifies available plans and recurring subscriptions',async()=>{const page=await (await fetch(base+'/')).text();for(const amount of ['$4.99','$12.99','$59.99'])assert.ok(page.includes(amount),amount);assert.match(page,/no auto-renewal/i);assert.match(page,/Per month; recurring subscription/i);assert.match(page,/Per year; recurring subscription/i);assert.doesNotMatch(page,/\$99|Per application; one-time/i);});
 
 test('builder includes a live preview and serves its script',async()=>{const page=await (await fetch(base+'/start')).text();const response=await fetch(base+'/builder-preview.js');assert.equal(response.status,200);const script=await response.text();assert.match(page,/id="builder-preview"/);assert.match(page,/builder-preview\.js/);assert.match(script,/textContent/);assert.doesNotMatch(script,/createObjectURL|\.download\s*=/);});
 
@@ -35,9 +35,9 @@ test('search landing pages and sitemap are publicly indexable',async()=>{for(con
 
 test('customer portal never offers unpaid generation without checkout',async()=>{const response=await fetch(base+'/app.js');assert.equal(response.status,200);const source=await response.text();assert.match(source,/billingState\?\.access\?\.ai/);assert.match(source,/billingState\?\.access\?\.active/);});
 
-test('billing and admin endpoints reject anonymous access',async()=>{for(const route of ['/api/billing','/api/admin/analytics','/api/orders']){const response=await fetch(base+route);assert.equal(response.status,401,route);}});
+test('prelaunch billing and admin endpoints fail closed',async()=>{for(const route of ['/api/billing','/api/admin/analytics','/api/orders']){const response=await fetch(base+route);assert.equal(response.status,503,route);}});
 test('public configuration never exposes payment secrets',async()=>{const response=await fetch(base+'/api/config');assert.equal(response.status,200);const body=await response.text();for(const key of ['stripeSecretKey','stripeWebhookSecret','emailKey','authSecret','encryptionKey'])assert.equal(body.includes(key),false,key);});
 
-test('analytics endpoint exposes only readiness booleans and requires authentication',async()=>{const response=await fetch(base+'/api/admin/analytics');assert.equal(response.status,401);const source=await(await fetch(base+'/app.js')).text();assert.match(source,/reportEmailConfigured/);assert.match(source,/livePaymentsConfigured/);});
+test('analytics endpoint is unavailable in prelaunch',async()=>{const response=await fetch(base+'/api/admin/analytics');assert.equal(response.status,503);const source=await(await fetch(base+'/app.js')).text();assert.match(source,/reportEmailConfigured/);assert.match(source,/livePaymentsConfigured/);});
 
 test('customer portal retains application list when billing refresh fails',async()=>{const response=await fetch(base+'/app.js');assert.equal(response.status,200);const source=await response.text();assert.match(source,/Billing status temporarily unavailable/);assert.match(source,/await orders\(\);if\(order/);assert.match(source,/Retry billing status/);});
