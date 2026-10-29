@@ -115,7 +115,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
  server.requestTimeout=20000;server.headersTimeout=10000;server.maxHeadersCount=50;
  let timer,reportTimer,reportBusy=false;
  const reportCheck=async()=>{if(reportBusy)return;reportBusy=true;try{await sendWeeklyReport({store,config});}catch{console.error('Weekly report delivery failed; will retry.');}finally{reportBusy=false;}};
- server.on('listening',()=>{if((config.enabled||config.sandboxEnabled)&&service){timer=setInterval(()=>service.tick().catch(()=>{}),2000);timer.unref();}if(store&&config.emailKey&&config.adminEmail){reportCheck();reportTimer=setInterval(reportCheck,15*60000);reportTimer.unref();}});
+ server.on('listening',()=>{if((config.enabled||config.sandboxEnabled||config.adminPreviewEnabled)&&service){timer=setInterval(()=>service.tick().catch(()=>{}),2000);timer.unref();}if(store&&config.emailKey&&config.adminEmail){reportCheck();reportTimer=setInterval(reportCheck,15*60000);reportTimer.unref();}});
  server.on('close',()=>{clearInterval(timer);clearInterval(reportTimer);if(ownStore)store.close();});
  server.service=service;server.billing=billing;return server;
 }
