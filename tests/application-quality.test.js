@@ -25,3 +25,5 @@ test('target grade can name the applied-for position but cannot enter the applic
 
 test('target series is allowed in a letter target but never becomes applicant experience',()=>{const federal={...input,targetSeries:'0343'},d=draft();d.coverLetter+=' I am applying for series 0343.';assert.equal(validateApplicationDraft(d,federal).coverLetter,d.coverLetter);d.summary='Experienced series 0343 analyst.';assert.throws(()=>validateApplicationDraft(d,federal),/numeric/);});
 test('standalone closing is supplied once by the renderer',()=>{const d=draft();d.coverLetter+='\n\nSincerely,';assert.doesNotMatch(validateApplicationDraft(d,input).coverLetter,/Sincerely/);});
+
+test('invalid short requirement mapping is retried and never grants unreviewed output',async()=>{const invalid=review();invalid.requirements[0].requirement='SQL';const requests=[];const result=await generateApplication(input,{apiKey:'test-only',fetchImpl:mockSequence([draft(),invalid,draft(),review()],requests)});assert.equal(result.editorial.passed,true);assert.equal(requests.length,4);assert.equal(result.usage.total_tokens,120);});
