@@ -1,0 +1,5 @@
+'use strict';
+const test=require('node:test');const assert=require('node:assert/strict');const {PLANS,plan,entitlement}=require('../lib/plans');
+test('plan prices and billing types are explicit',()=>{assert.equal(PLANS.access7.amountCents,499);assert.equal(PLANS.access7.billing,'one_time');assert.equal(PLANS.monthly.amountCents,1299);assert.equal(PLANS.monthly.interval,'month');assert.equal(PLANS.annual.amountCents,5999);assert.equal(PLANS.annual.interval,'year');assert.equal(PLANS.premium.amountCents,9900);assert.throws(()=>plan('unknown'))});
+test('access fails closed for missing or expired entitlements',()=>{const now=Date.now();for(const value of [{planId:'access7',status:'unpaid',expiresAt:now+1000},{planId:'monthly',status:'active',expiresAt:now-1},{planId:'annual',status:'active'}])assert.equal(entitlement(value,now).canDownload,false)});
+test('canceled subscription retains access until expiry without renewal',()=>{const now=Date.now();const e=entitlement({planId:'monthly',status:'active',expiresAt:now+10000,canceledAt:now},now);assert.equal(e.canDownload,true);assert.equal(e.renews,false)});
