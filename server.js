@@ -61,7 +61,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
    }
    if(route==='/ads.txt'&&['GET','HEAD'].includes(req.method)){const text=advertising.adsTxt(ads);return send(text?200:404,text||'Advertising is not configured.','text/plain; charset=utf-8');}
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled,readinessBlockers:config.blockers,backupStatus:store?.get('operations','backup')?.status||'pending',backupCreatedAt:store?.get('operations','backup')?.data.createdAt||null});
-   if(route==='/api/config'){const qa=sandboxSession(service?.session(cookie(req)));return send(200,{intakeEnabled:Boolean(config.enabled||qa),sandboxTestAccess:Boolean(config.adminPreviewEnabled),checkoutEnabled:Boolean(config.checkoutEnabled||qa&&config.sandboxCheckoutEnabled),billingTestMode:!config.stripeLive,aiDraftsPerMonth:config.aiDraftsPerMonth,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});}
+   if(route==='/api/config'){const qa=sandboxSession(service?.session(cookie(req)));return send(200,{intakeEnabled:Boolean(config.enabled||qa),sandboxTestAccess:Boolean(config.adminPreviewEnabled),checkoutEnabled:Boolean(config.checkoutEnabled||qa&&config.sandboxCheckoutEnabled),billingTestMode:!config.stripeLive,aiDraftsPerMonth:config.aiDraftsPerMonth,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});}
    if(route==='/api/site-assistant'&&req.method==='POST'){
     if(!allowedBrowserOrigin(req,config))fail(403,'Request origin is not allowed.');
     const now=Date.now(),ip=req.socket.remoteAddress||'unknown',key='assistant:'+ip;

@@ -14,7 +14,7 @@ Scope: robertrichards45/Finance only. Baseline efb8df5c55bfc3fc3e5e363a4107dbbfc
 - Only live Stripe account is exposed by the connector; no sandbox account or readable sandbox credentials are available. Provider-backed sandbox transactions remain blocked pending sandbox connection. Do not substitute mocks for this acceptance test.
 - Historical fictional OpenAI probe recorded in docs/acceptance.md; repeat tests against current deployment needed.
 
-## Confirmed defects / incomplete features
+## Baseline defects / incomplete features (historical findings before fixes)
 
 - Service.create and Service.update authorize paid access before saving; contradict build-first promise.
 - Strict complete-intake validation prevents incremental draft saves. No autosave/version conflict handling.
@@ -34,3 +34,13 @@ Scope: robertrichards45/Finance only. Baseline efb8df5c55bfc3fc3e5e363a4107dbbfc
 - Refund/cancellation terms require operator/legal review; correcting false statements does not constitute legal approval or authorize business-term changes.
 - Backup snapshots on the same volume improve recovery but are not disaster recovery; an independently stored key and off-volume encrypted copy are required.
 - AdSense approval, actual provider delivery, mobile accessibility, current federal rules and real rendered document inspection remain separate acceptance items.
+
+## Implemented remediation
+
+Free incomplete draft creation/update, account autosave/version conflicts, guided steps and tab recovery replace the baseline pay-before-save behavior. Generated writing and exports still require entitlements. Manual seven-day writing does not call AI. Pro edits can save with basic/manual review after the shared AI allowance is exhausted.
+
+Secure allowlisted job URL import, Pro exact-quote structured import proposals, section rewrites, five prior writing revisions, lifecycle email outbox notifications, aggregate operational telemetry, encrypted local snapshots/restore tests, advertisement preparation (disabled), a cover-letter guide and accurate public payment disclosures are committed. These are implementation results; provider acceptance and full browser acceptance are listed separately.
+
+The current local suite is 177/177. Production probes identified valid target-series numbers being rejected and duplicate letter closings; both were corrected with regression tests. Invalid reviewer source maps now receive bounded repair attempts while malformed/oversized structures still fail closed. Actual current provider acceptance is reported separately.
+
+Public Resend sender verification, a connected Stripe sandbox, live malware scanning, independent backups and key protection, authenticated full customer/admin delivery, real mobile/a11y acceptance, cost reconciliation and final policy approval remain incomplete. Do not label the site fully launched merely because configuration flags permit purchases.

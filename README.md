@@ -8,7 +8,7 @@ CareerLaunch AI is the résumé, cover-letter, and application builder deployed 
 - Stripe live Checkout opens successfully and uses live price IDs configured in Railway. The Stripe catalog is checked at startup, and the website verifies Stripe session ownership, amounts, and payment status before granting access.
 - Stripe webhook signature validation and webhook delivery are implemented. An accepted webhook is **not** proof that a paid transaction has been completed.
 - The first **real paid** purchase → webhook → entitlement → document generation → download workflow still needs an authorized end-to-end acceptance test. Do not claim a completed payment was verified until it has actually happened.
-- Login emails are sent through Resend using a retrying outbox. A purchase-first selection can be retained through email-link sign-in.
+- Login uses a retrying Resend outbox and preserves the selected plan. Public delivery is blocked until the resumebuilder.shop sender domain is verified; the current resend.dev sender is restricted. Acceptance does not establish inbox delivery.
 - Users returning from Stripe see payment-verification status and a retry path; this does not create an additional payment.
 
 ## Run and verify
