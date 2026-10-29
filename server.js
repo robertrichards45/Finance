@@ -7,6 +7,7 @@ const {Store}=require('./lib/store');
 const {Service}=require('./lib/service');
 const {same,cookie,fail,jsonBody}=require('./lib/security');
 const {extractUpload}=require('./lib/uploads');
+const {answerQuestion}=require('./lib/site-assistant');
 const {createTestCheckout,parsePaidCheckoutEvent}=require('./lib/stripe-checkout');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
 const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
@@ -33,6 +34,17 @@ function createApp({config=configuration(),store,service}={}){
    }
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.enabled&&config.stripeConfigured&&config.stripeTestMode),intakeEnabled:config.enabled});
    if(route==='/api/config')return send(200,{intakeEnabled:config.enabled,checkoutEnabled:Boolean(config.enabled&&config.stripeConfigured&&config.stripeTestMode),priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});
+   if(route==='/api/site-assistant'&&req.method==='POST'){
+    if(req.headers.origin!==config.baseUrl)fail(403,'Request origin is not allowed.');
+    const now=Date.now(),ip=req.socket.remoteAddress||'unknown',key='assistant:'+ip;
+    const previous=rate.get(key);const entry=previous&&previous.until>now?previous:{count:0,until:now+3600000};
+    if(++entry.count>12)fail(429,'Assistant question limit reached. Please try again later.');
+    rate.set(key,entry);
+    const body=await jsonBody(req,2048);
+    if(!body||typeof body.question!=='string')fail(400,'Enter a question.');
+    const result=await answerQuestion(body.question,{apiKey:config.apiKey,model:config.model});
+    return send(200,result);
+   }
    if(route.startsWith('/api/')){
     if(!service||!store)fail(503,'Customer services are not open yet. Please use the sample preview.');
     const now=Date.now();if(now-lastPrune>60000){for(const [k,v]of rate)if(v.until<now)rate.delete(k);lastPrune=now;}
