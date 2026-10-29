@@ -11,12 +11,14 @@ const {Billing}=require('./lib/billing');
 const {answerQuestion}=require('./lib/site-assistant');
 const analytics=require('./lib/analytics');
 const telemetry=require('./lib/telemetry');
+const advertising=require('./lib/advertising');
 const backups=require('./lib/backups');
 const crypto=require('node:crypto');
 const {importJob}=require('./lib/job-import');
+const {importResume}=require('./lib/resume-import');
 const {sendWeeklyReport}=require('./lib/weekly-report');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
-const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/guided-builder.js':'guided-builder.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
+const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/advertising.js':'advertising.js','/guided-builder.js':'guided-builder.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
 function consistentSiteLayout(html){
  const nav="<header class=\"site-header\"><a class=\"logo\" href=\"/\">CareerLaunch<span>AI</span><span class=\"logo-dot\" aria-hidden=\"true\"></span></a><nav aria-label=\"Main navigation\"><a href=\"/resume-builder\">Résumé builder</a><a href=\"/services\">Services</a><a href=\"/templates\">Résumé designs</a><a href=\"/#pricing\">Pricing</a><a href=\"/#how\">How it works</a><a href=\"/portal\" class=\"nav-portal\">My applications <span aria-hidden=\"true\">↗</span></a></nav></header>";
  const chat="<aside class=\"career-chat\" aria-label=\"CareerLaunch AI help\"><button id=\"career-chat-toggle\" class=\"career-chat-toggle\" type=\"button\" aria-controls=\"career-chat-panel\" aria-expanded=\"false\">Ask CareerLaunch AI ✦</button><section id=\"career-chat-panel\" class=\"career-chat-panel\" hidden><h2>Ask about résumés or federal hiring</h2><p class=\"fine\">Pricing, templates, cover letters, USAJOBS, veterans’ preference, military spouse hiring, and more. Guidance is informational; verify current rules with OPM and the hiring agency.</p><div id=\"career-chat-history\" class=\"career-chat-history\" role=\"log\" aria-live=\"polite\"><p class=\"career-chat-message career-chat-assistant\">Hi! What would you like to know about résumés, federal applications, or CareerLaunch AI?</p></div><form id=\"career-chat-form\"><label for=\"career-chat-question\">Your question</label><textarea id=\"career-chat-question\" rows=\"2\" maxlength=\"800\" required minlength=\"3\" placeholder=\"Do I qualify for veterans’ preference?\"></textarea><button class=\"button small\" id=\"career-chat-submit\" type=\"submit\">Ask question</button></form><p class=\"fine\">Do not share SSNs or other sensitive personal information.</p></section></aside>";
@@ -35,11 +37,11 @@ function allowedBrowserOrigin(req,config){
   return permitted.has(parsed.origin);
  }catch{return false;}
 }
-function createApp({config=configuration(),store,service,billing:billingOverride}={}){
+function createApp({config=configuration(),store,service,billing:billingOverride,ads=advertising.settings()}={}){
  let ownStore=false;
  if(!store&&config.dataDir&&/^[a-f0-9]{64}$/i.test(config.encryptionKey||'')){store=new Store({directory:config.dataDir,key:config.encryptionKey});ownStore=true;}
  service=service||(store?new Service(store,config):null);
- const billing=billingOverride||service?.billing||(store?new Billing(store,config,{notify:({caseId,type})=>service?.enqueueMail(config.adminEmail,'CareerLaunch billing needs attention','Review the billing case in the administrator dashboard: '+caseId+' ('+type+').','billing-'+caseId+'-'+type)}):null);if(service)service.billing=billing;
+ const billing=billingOverride||service?.billing||(store?new Billing(store,config,{notify:event=>{const {owner,caseId,type,paymentId,planId,subscriptionId,paidUntil}=event;if(['payment_verified','subscription_canceled','payment_failed'].includes(type)){const email=store.get('account',owner)?.data.email||store.list('session',owner)[0]?.data.email||store.list('order',owner)[0]?.data.email;if(!email)return;const subject=type==='payment_verified'?'Your CareerLaunch AI access is confirmed':type==='subscription_canceled'?'CareerLaunch AI renewal canceled':'CareerLaunch AI billing needs attention';const message=type==='payment_verified'?'Stripe confirmed payment for your '+planId+' access. Return to your saved applications and billing details: '+config.baseUrl+'/portal\nThis is an access confirmation. Your official payment receipt is provided by Stripe.':type==='subscription_canceled'?'Automatic renewal is canceled. Your current paid-through date is '+new Date(paidUntil).toISOString().slice(0,10)+'. Manage access in '+config.baseUrl+'/portal':'Stripe could not confirm a renewal payment. Review your billing details in '+config.baseUrl+'/portal';service?.enqueueMail(email,subject,message,'billing-notice-'+(paymentId||subscriptionId)+'-'+type);}else service?.enqueueMail(config.adminEmail,'CareerLaunch billing needs attention','Review the billing case in the administrator dashboard: '+caseId+' ('+type+').','billing-'+caseId+'-'+type);}}):null);if(service)service.billing=billing;
  const sandboxSession=session=>Boolean(config.sandboxEnabled&&session?.admin);
  const rate=new Map();let lastPrune=0;
  const server=http.createServer(async(req,res)=>{
@@ -57,6 +59,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>131072)fail(413,'Webhook too large');chunks.push(chunk);}
     const event=billing.verify(Buffer.concat(chunks),req.headers['stripe-signature']);await billing.event(event);return send(200,{received:true});
    }
+   if(route==='/ads.txt'&&['GET','HEAD'].includes(req.method)){const text=advertising.adsTxt(ads);return send(text?200:404,text||'Advertising is not configured.','text/plain; charset=utf-8');}
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled,readinessBlockers:config.blockers});
    if(route==='/api/config'){const qa=sandboxSession(service?.session(cookie(req)));return send(200,{intakeEnabled:Boolean(config.enabled||qa),sandboxTestAccess:Boolean(config.adminPreviewEnabled),checkoutEnabled:Boolean(config.checkoutEnabled||qa&&config.sandboxCheckoutEnabled),billingTestMode:!config.stripeLive,aiDraftsPerMonth:config.aiDraftsPerMonth,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});}
    if(route==='/api/site-assistant'&&req.method==='POST'){
@@ -98,8 +101,9 @@ function createApp({config=configuration(),store,service,billing:billingOverride
      if(req.method==='GET')return send(200,{orders:service.list(session)});
      if(req.method==='POST')return send(201,service.create(await jsonBody(req),session));
     }
-    const match=route.match(/^\/api\/orders\/(cl_[a-f0-9]{32})(?:\/(generate|revise|approve|draft|download|checkout|manual|duplicate))?$/);
+    const match=route.match(/^\/api\/orders\/(cl_[a-f0-9]{32})(?:\/(generate|revise|approve|draft|download|checkout|manual|duplicate|history))?$/);
     if(match){const [,id,action]=match;
+     if(req.method==='GET'&&action==='history')return send(200,service.versions(id,session));
      if(req.method==='POST'&&action==='duplicate')return send(201,service.duplicate(id,session));
      if(req.method==='GET'&&!action)return send(200,service.view(service.own(id,session)));
      if(req.method==='DELETE'&&!action){service.remove(id,session);return send(200,{deleted:true});}
@@ -116,7 +120,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
    }
    if(!['GET','HEAD'].includes(req.method))return send(405,'Method not allowed','text/plain');
    const filename=ROUTES[route];if(!filename)return send(404,'Not found','text/plain');
-   let data=await fs.readFile(path.join(__dirname,filename));if(filename.endsWith('.html'))data=consistentSiteLayout(data.toString('utf8'));const visitorCookie=analytics.recordVisit(store,req,route,config.production);return send(200,data,MIME[path.extname(filename)]||'text/plain',visitorCookie?{'Set-Cookie':visitorCookie}:{});
+   let data=await fs.readFile(path.join(__dirname,filename));if(filename.endsWith('.html')){data=advertising.decorate(consistentSiteLayout(data.toString('utf8')),url,ads);if(data.includes('<script src="/advertising.js" defer>'))headers['Content-Security-Policy']="default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.google.com https://*.gstatic.com https://*.doubleclick.net https://fundingchoicesmessages.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.googlesyndication.com https://*.google.com https://*.gstatic.com https://*.doubleclick.net; connect-src 'self' https://*.googlesyndication.com https://*.google.com https://*.doubleclick.net https://fundingchoicesmessages.google.com; frame-src https://*.googlesyndication.com https://*.google.com https://*.doubleclick.net https://fundingchoicesmessages.google.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'";}const visitorCookie=analytics.recordVisit(store,req,route,config.production);return send(200,data,MIME[path.extname(filename)]||'text/plain',visitorCookie?{'Set-Cookie':visitorCookie}:{});
   }catch(error){const status=error.status||500;if(status>=500)console.error(JSON.stringify({event:'request_failed',requestId,status,category:error.name==='Error'?'operation':error.name}));send(status,{error:status<500?error.message:status===503?error.message:'Unable to complete this request. Please retry or contact support.'});}
  });
  server.requestTimeout=20000;server.headersTimeout=10000;server.maxHeadersCount=50;
