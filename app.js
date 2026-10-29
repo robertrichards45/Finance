@@ -29,6 +29,7 @@
 
   if(['draft','failed'].includes(record.status)&&billingState?.access?.ai)bar.append(act('Generate application',async()=>{await api('/api/orders/'+id+'/generate',{method:'POST',body:{}});await openOrder(id);await orders();},'button'));
   if(['draft','failed'].includes(record.status)&&billingState?.access?.active)bar.append(act('Write and edit manually',async()=>{await api('/api/orders/'+id+'/manual',{method:'POST',body:{}});await openOrder(id);await orders();}));
+  if(['draft','failed'].includes(record.status)&&record.paymentStatus!=='paid_test')panel.append(node('p','Your application details are saved. AI generation and completed document access are locked until secure checkout and verified payment are available. No payment is being collected here.','help'));
   bar.append(act('Delete application',async()=>{if(!confirm('Delete this application and its documents? This cannot be undone.'))return;await api('/api/orders/'+id,{method:'DELETE'});selected=null;root.hidden=true;clearTimeout(refreshTimer);await orders();},'secondary small danger'));panel.append(bar);
   if(['queued','generating'].includes(record.status)){panel.append(node('p','Your resume and cover letter are being written, checked against your facts and job requirements, and rendered. This may take a few minutes. This page will update automatically.'));clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>{if(selected===id)openOrder(id).catch(e=>notice(e.message,true));},5000);}
   if(record.draft){const draft=structuredClone(record.draft);panel.append(node('h2',record.name));
