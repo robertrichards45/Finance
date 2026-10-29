@@ -16,4 +16,8 @@ The test suite covers the retained helper modules, readiness gates, encrypted pe
 - Connect and test the real malware scanner with the standard EICAR test and safe DOCX/PDF fixtures before enabling binary uploads.
 - Test mobile forms, keyboard navigation, contrast and assistive-technology flow. Browser checks of disabled prelaunch screens do not validate the enabled workflow.
 - Complete backup/restore drill, publish the operator's public contact and final policies, and review customer data processing arrangements.
-- Keep payment activation last. Stripe Checkout/webhooks/refunds are not integrated or enabled.
+- Keep payment activation last. Hosted Stripe sandbox Checkout and signed payment recording are scaffolded. Live checkout, recurring-plan fulfillment, cancellation and refunds are not ready. Sandbox credentials and a full payment-to-delivery test remain required.
+
+## Writing review update
+
+See [writing-quality.md](writing-quality.md) for the separate editorial request, one repair/re-review cycle, exact evidence mapping, manual-edit checks and per-request quota. The deterministic suite now covers these gates; actual model acceptance remains distinct from mocked provider tests. Portal JavaScript and a malformed server-test expression were repaired so the customer screens and regression suite can run.

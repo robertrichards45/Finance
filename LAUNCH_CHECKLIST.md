@@ -9,7 +9,7 @@
 - Checkout is intentionally disabled for public customers.
 
 ## Required configuration (Railway production service)
-Configure `STRIPE_SECRET_KEY` using a **test** secret key (`sk_test_...`), `STRIPE_PRICE_ID=price_1UVls6BxDlvv3BXbIavWVOrx`, and `STRIPE_WEBHOOK_SECRET` from a Stripe **test-mode** webhook destination targeting `https://resumebuilder.shop/api/stripe/webhook`. Subscribe to `checkout.session.completed`.
+Configure `STRIPE_SECRET_KEY` using a **test** secret key (`rk_test_...` preferred, with minimal Checkout permissions; `sk_test_...` is also supported), `STRIPE_PRICE_ID=price_1UVls6BxDlvv3BXbIavWVOrx`, and `STRIPE_WEBHOOK_SECRET` from a Stripe **test-mode** webhook destination targeting `https://resumebuilder.shop/api/stripe/webhook`. Subscribe to `checkout.session.completed` and `checkout.session.async_payment_succeeded`. An unpaid completion is acknowledged without fulfillment; only a signed paid event is recorded.
 
 The webhook implementation currently records `paid_test` for a verified, paid test Checkout session. It does not activate live fulfillment. Do not use a live Stripe secret key with this code.
 
@@ -30,3 +30,6 @@ Keep `INTAKE_ENABLED=false` and `LAUNCH_APPROVED=false` until a complete end-to-
 10. Only then configure live Stripe credentials and explicitly approve opening intake and live payments.
 
 Do not commit Stripe or email secrets to GitHub.
+
+## Writing quality
+Generation and manual edits must pass the editorial checks in [docs/writing-quality.md](docs/writing-quality.md). Test representative live-provider results; mocked unit tests alone are not editorial acceptance. Builder plans are advertised at $4.99/$12.99/$59.99, but the existing sandbox price above is only for the separate $99 premium package. Do not connect those builder plan buttons to the premium price. Recurring billing, plan-specific quotas, cancellation and entitlements must be completed and tested first.
