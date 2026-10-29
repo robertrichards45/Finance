@@ -25,3 +25,6 @@ test('legacy per-application checkout is not advertised',async()=>{const home=aw
 test('builder exposes section ordering controls',async()=>{const page=await (await fetch(base+'/start')).text();assert.match(page,/id="section-order"/);for(const section of ['summary','skills','experience','education'])assert.ok(page.includes('data-section="'+section+'"'));});
 
 test('application script is a single self-contained program',async()=>{const response=await fetch(base+'/app.js');assert.equal(response.status,200);const js=await response.text();assert.equal((js.match(/\}\)\(\);/g)||[]).length,1);assert.doesNotThrow(()=>new (require('node:vm').Script)(js));});
+
+test('homepage chat widget and script are available',async()=>{const page=await(await fetch(base+'/')).text();assert.match(page,/career-chat-toggle/);const js=await fetch(base+'/site-assistant.js');assert.equal(js.status,200);assert.match(await js.text(),/site-assistant/);});
+test('public assistant enforces origin and question validation',async()=>{const url=base+'/api/site-assistant';const send=(origin,body)=>fetch(url,{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal((await send('https://evil.example',{question:'Veterans preference?'})).status,403);assert.equal((await send('https://resumebuilder.shop',{question:'x'})).status,400);});
