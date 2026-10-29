@@ -7,6 +7,7 @@ const {Store}=require('./lib/store');
 const {Service}=require('./lib/service');
 const {same,cookie,fail,jsonBody}=require('./lib/security');
 const {extractUpload}=require('./lib/uploads');
+const {createTestCheckout}=require('./lib/stripe-checkout');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
 const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
 function createApp({config=configuration(),store,service}={}){
@@ -45,13 +46,14 @@ function createApp({config=configuration(),store,service}={}){
      if(req.method==='GET')return send(200,{orders:service.list(session)});
      if(req.method==='POST')return send(201,service.create(await jsonBody(req),session));
     }
-    const match=route.match(/^\/api\/orders\/(cl_[a-f0-9]{32})(?:\/(generate|revise|approve|draft|download))?$/);
+    const match=route.match(/^\/api\/orders\/(cl_[a-f0-9]{32})(?:\/(generate|revise|approve|draft|download|checkout))?$/);
     if(match){const [,id,action]=match;
      if(req.method==='GET'&&!action)return send(200,service.view(service.own(id,session)));
      if(req.method==='DELETE'&&!action){service.remove(id,session);return send(200,{deleted:true});}
      if(req.method==='PUT'&&!action)return send(200,service.update(id,session,await jsonBody(req)));
      if(req.method==='POST'&&['generate','revise'].includes(action)){const b=await jsonBody(req,5000);return send(202,service.queue(id,session,b.instructions));}
      if(req.method==='PUT'&&action==='draft'){const b=await jsonBody(req,50000);return send(200,await service.editDraft(id,session,b.draft));}
+     if(req.method==='POST'&&action==='checkout'){if(!config.stripeConfigured||!config.stripeTestMode)fail(503,'Test checkout is not configured.');const order=service.own(id,session);if(!['draft','review'].includes(order.status))fail(409,'Order is not eligible for test checkout.');const checkout=await createTestCheckout({secretKey:config.stripeSecretKey,priceId:config.stripePriceId,orderId:id,baseUrl:config.baseUrl,email:session.data.email});return send(200,{url:checkout.url,testMode:true});}
      if(req.method==='POST'&&action==='approve')return send(200,service.approve(id,session,await jsonBody(req,2000)));
      if(req.method==='POST'&&action==='download'){const b=await jsonBody(req,1024);return send(200,{url:service.downloadLink(id,session,b.filename)});}
     }
