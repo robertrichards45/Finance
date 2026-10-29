@@ -21,3 +21,5 @@ test('public pricing clearly identifies prelaunch plans and recurring subscripti
 test('builder includes a live preview and serves its script',async()=>{const page=await (await fetch(base+'/start')).text();const response=await fetch(base+'/builder-preview.js');assert.equal(response.status,200);const script=await response.text();assert.match(page,/id="builder-preview"/);assert.match(page,/builder-preview\.js/);assert.match(script,/textContent/);assert.doesNotMatch(script,/createObjectURL|\.download\s*=/);});
 
 test('legacy per-application checkout is not advertised',async()=>{const home=await (await fetch(base+'/')).text();const portal=await (await fetch(base+'/app.js')).text();assert.doesNotMatch(home,/\$99|Per application; one-time/i);assert.doesNotMatch(portal,/Pay \$|Stripe test mode/i)});
+
+test('builder exposes section ordering controls',async()=>{const page=await (await fetch(base+'/start')).text();assert.match(page,/id="section-order"/);for(const section of ['summary','skills','experience','education'])assert.ok(page.includes('data-section="'+section+'"'));});
