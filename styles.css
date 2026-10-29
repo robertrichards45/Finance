@@ -29,3 +29,14 @@ h1{font-weight:700}h1 em{color:#7150d4;background:linear-gradient(105deg,#7551d8
 .sample-schematic-bar{height:9px;max-width:100%;border-radius:6px;background:linear-gradient(90deg,#dce1ed,#e9ecf3)}
 .sample-schematic-watermark{position:absolute;top:42%;left:3%;width:94%;text-align:center;transform:rotate(-24deg);font-size:clamp(2rem,8vw,5rem);font-weight:900;letter-spacing:.08em;color:rgba(132,53,178,.17);pointer-events:none;white-space:nowrap}
 @media print{.sample-schematic{display:none!important}body:has(.sample-schematic) main{display:none!important}}
+
+/* Consistent sample page presentation */
+body[data-page="sample"] .sample-workspace{padding-bottom:88px}
+body[data-page="sample"] .sample-form-panel{max-width:780px;margin:30px auto;padding:clamp(22px,4vw,46px);border-radius:24px}
+body[data-page="sample"] .sample-form-panel form{display:grid;gap:14px}
+body[data-page="sample"] .sample-form-panel label{font-weight:700;display:block;margin-top:9px}
+body[data-page="sample"] .sample-form-panel input,body[data-page="sample"] .sample-form-panel select,body[data-page="sample"] .sample-form-panel textarea{width:100%;padding:14px;border-radius:12px;border:1px solid #b8c7ce;background:#fff;color:#18243c}
+body[data-page="sample"] .sample-form-panel textarea{min-height:105px}
+body[data-page="sample"] .sample-result{max-width:780px;margin:28px auto;padding:clamp(20px,4vw,42px);border-radius:24px}
+body[data-page="sample"] .sample-form-panel .button{justify-self:start;margin-top:12px}
+@media(max-width:720px){body[data-page="sample"] .sample-form-panel .button{width:100%}}
