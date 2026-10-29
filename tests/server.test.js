@@ -28,3 +28,5 @@ test('application script is a single self-contained program',async()=>{const res
 
 test('homepage chat widget and script are available',async()=>{const page=await(await fetch(base+'/')).text();assert.match(page,/career-chat-toggle/);const js=await fetch(base+'/site-assistant.js');assert.equal(js.status,200);assert.match(await js.text(),/site-assistant/);});
 test('public assistant enforces origin and question validation',async()=>{const url=base+'/api/site-assistant';const send=(origin,body)=>fetch(url,{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal((await send('https://evil.example',{question:'Veterans preference?'})).status,403);assert.equal((await send('https://resumebuilder.shop',{question:'x'})).status,400);});
+
+test('federal assistant returns official source links',async()=>{const {answerQuestion}=require('../lib/site-assistant');const result=await answerQuestion('Does veterans preference apply to federal jobs?',{apiKey:''});assert.ok(result.references.some(x=>x.url.startsWith('https://www.opm.gov/')));assert.equal(result.source,'guide');});
