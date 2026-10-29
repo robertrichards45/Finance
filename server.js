@@ -61,7 +61,7 @@ function createApp({config=configuration(),store,service}={}){
      if(req.method==='PUT'&&!action)return send(200,service.update(id,session,await jsonBody(req)));
      if(req.method==='POST'&&['generate','revise'].includes(action)){const b=await jsonBody(req,5000);return send(202,service.queue(id,session,b.instructions));}
      if(req.method==='PUT'&&action==='draft'){const b=await jsonBody(req,50000);return send(200,await service.editDraft(id,session,b.draft));}
-     if(req.method==='POST'&&action==='checkout'){fail(503,'Legacy checkout is unavailable while new subscription plans are being built.');if(!config.stripeConfigured||!config.stripeTestMode)fail(503,'Test checkout is not configured.');const order=service.own(id,session);if(order.data.payment?.status==='paid_test')fail(409,'This order is already paid.');if(!['draft','review','failed'].includes(order.status))fail(409,'Order is not eligible for test checkout.');const checkout=await createTestCheckout({secretKey:config.stripeSecretKey,priceId:config.stripePriceId,orderId:id,baseUrl:config.baseUrl,email:session.data.email});const current=service.own(id,session);store.put('order',current.id,current.owner,current.status,{...current.data,checkoutSessionId:checkout.id});return send(200,{url:checkout.url,testMode:true});}
+     if(req.method==='POST'&&action==='checkout')fail(503,'Legacy checkout is unavailable while new subscription plans are being built.');
      if(req.method==='POST'&&action==='approve')return send(200,service.approve(id,session,await jsonBody(req,2000)));
      if(req.method==='POST'&&action==='download'){const b=await jsonBody(req,1024);return send(200,{url:service.downloadLink(id,session,b.filename)});}
     }
