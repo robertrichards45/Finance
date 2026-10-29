@@ -31,8 +31,8 @@ function createApp({config=configuration(),store,service}={}){
      if(!store.get('stripe_event',event.eventId)){store.put('stripe_event',event.eventId,order.owner,'processed',{orderId:order.id,sessionId:event.sessionId});store.put('order',order.id,order.owner,order.status,{...order.data,payment:{status:'paid_test',sessionId:event.sessionId,amount:event.amountTotal,currency:'usd',recordedAt:Date.now()}})}}
     return send(200,{received:true});
    }
-   if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:false,intakeEnabled:config.enabled});
-   if(route==='/api/config')return send(200,{intakeEnabled:config.enabled,checkoutEnabled:false,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});
+   if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.enabled&&config.stripeConfigured&&config.stripeTestMode),intakeEnabled:config.enabled});
+   if(route==='/api/config')return send(200,{intakeEnabled:config.enabled,checkoutEnabled:Boolean(config.enabled&&config.stripeConfigured&&config.stripeTestMode),priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});
    if(route.startsWith('/api/')){
     if(!service||!store)fail(503,'Customer services are not open yet. Please use the sample preview.');
     const now=Date.now();if(now-lastPrune>60000){for(const [k,v]of rate)if(v.until<now)rate.delete(k);lastPrune=now;}
