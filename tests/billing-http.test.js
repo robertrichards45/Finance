@@ -12,7 +12,7 @@ test('authenticated purchase -> signed webhook -> generation -> factual approval
  const request=(route,body={},method='POST',extra={})=>fetch(base+route,{method,headers:{...headers,...extra},body:JSON.stringify(body)});
  const webhook=async event=>{const payload=JSON.stringify(event),signature=s.sdk.webhooks.generateTestHeaderString({payload,secret:s.config.stripeWebhookSecret});return fetch(base+'/api/stripe/webhook',{method:'POST',headers:{'Stripe-Signature':signature,'Content-Type':'application/json'},body:payload});};
  try{
-  assert.equal((await fetch(base+'/api/billing')).status,401);assert.equal((await request('/api/orders',input)).status,402);
+  assert.equal((await fetch(base+'/api/billing')).status,401);assert.equal((await request('/api/orders',input)).status,201);
   assert.equal((await request('/api/billing/checkout',{planId:'monthly'},'POST',{Origin:'https://evil.example'})).status,403);
   assert.equal((await request('/api/billing/checkout',{planId:'monthly'},'POST',{'X-CSRF-Token':'wrong'})).status,403);
   const checkout=await request('/api/billing/checkout',{planId:'monthly'});assert.equal(checkout.status,200);assert.equal((await checkout.json()).testMode,true);
@@ -33,7 +33,7 @@ test('seven-day manual editing works without granting AI drafting',async()=>{con
 
 test('private sandbox permits only the owner while public signup and payments stay closed',async()=>{const s=fixture();Object.assign(s.config,{enabled:false,checkoutEnabled:false,sandboxEnabled:true,sandboxCheckoutEnabled:true});const app=createApp({config:s.config,store:s.store,service:s.service,billing:s.billing});app.listen(0);await new Promise(r=>app.once('listening',r));const base='http://127.0.0.1:'+app.address().port;try{const publicState=await (await fetch(base+'/api/config')).json();assert.equal(publicState.intakeEnabled,false);assert.equal(publicState.checkoutEnabled,false);const before=s.store.list('login').length;const response=await fetch(base+'/api/auth/login',{method:'POST',headers:{Origin:s.config.baseUrl,'Content-Type':'application/json'},body:JSON.stringify({email:'not-owner@example.test'})});assert.equal(response.status,503);assert.equal(s.store.list('login').length,before);const admin=s.login(s.config.adminEmail);const headers={Origin:s.config.baseUrl,'Content-Type':'application/json',Cookie:'cl_session='+admin.token,'X-CSRF-Token':admin.data.csrf};const privateState=await (await fetch(base+'/api/config',{headers})).json();assert.equal(privateState.intakeEnabled,true);assert.equal(privateState.checkoutEnabled,true);const publicCookie={...headers,Cookie:'cl_session='+s.user.token,'X-CSRF-Token':s.user.data.csrf};assert.equal((await fetch(base+'/api/billing/checkout',{method:'POST',headers:publicCookie,body:JSON.stringify({planId:'access7'})})).status,503);assert.equal((await fetch(base+'/api/billing/checkout',{method:'POST',headers,body:JSON.stringify({planId:'access7'})})).status,200);}finally{await new Promise(r=>app.close(r));s.close();}});
 
-test('purchase-first login email retains a selected plan but never arbitrary redirect values',()=>{const s=fixture();try{const email='plan-buyer@example.test';s.service.requestLogin(email,'annual');const message=s.store.list('mail').find(r=>r.data.email===email)?.data.message;assert.match(message,/\/portal\?qa=1&plan=annual#token=/);const badEmail='unsafe-plan@example.test';s.service.requestLogin(badEmail,'https://evil.example/');const unsafe=s.store.list('mail').find(r=>r.data.email===badEmail)?.data.message;assert.match(unsafe,/\/portal\?qa=1#token=/);assert.doesNotMatch(unsafe,/evil\.example/);}finally{s.close();}});
+test('purchase-first login email retains a selected plan but never arbitrary redirect values',()=>{const s=fixture();try{const email='plan-buyer@example.test';s.service.requestLogin(email,'annual');const message=s.store.list('mail').find(r=>r.data.email===email)?.data.message;assert.match(message,/\/portal\?plan=annual#token=/);const badEmail='unsafe-plan@example.test';s.service.requestLogin(badEmail,'https://evil.example/');const unsafe=s.store.list('mail').find(r=>r.data.email===badEmail)?.data.message;assert.match(unsafe,/\/portal#token=/);assert.doesNotMatch(unsafe,/evil\.example/);}finally{s.close();}});
 
 test('signed seven-day purchase unlocks editable Word/PDF documents, and expiry blocks retained links',async()=>{
  const s=fixture(),app=createApp({config:s.config,store:s.store,service:s.service,billing:s.billing});
@@ -41,7 +41,7 @@ test('signed seven-day purchase unlocks editable Word/PDF documents, and expiry 
  const base='http://127.0.0.1:'+app.address().port,headers={Origin:s.config.baseUrl,'Content-Type':'application/json',Cookie:'cl_session='+s.user.token,'X-CSRF-Token':s.user.data.csrf};
  const request=(route,body={},method='POST')=>fetch(base+route,{method,headers,body:JSON.stringify(body)});
  try{
-  assert.equal((await request('/api/orders',input)).status,402,'payment is required before creating an application');
+  assert.equal((await request('/api/orders',input)).status,201,'application facts can be saved before payment');
   const checkout=await request('/api/billing/checkout',{planId:'access7'});
   assert.equal(checkout.status,200);
   assert.match((await checkout.json()).url,/^https:\/\/checkout\.stripe\.com\//);
