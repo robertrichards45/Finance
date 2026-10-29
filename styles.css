@@ -68,3 +68,5 @@ body[data-page="sample"] .sample-form-panel .button{justify-self:start;margin-to
 .career-chat-panel label{display:block;font-weight:600}
 .career-chat-panel button:disabled{opacity:.5}
 @media(max-width:600px){.career-chat{right:10px;bottom:10px;max-width:calc(100vw - 20px)}.career-chat-panel{width:calc(100vw - 20px);max-height:70vh}}
+
+.career-chat-references{display:flex;flex-direction:column;gap:6px;font-size:.78rem;line-height:1.35;padding:10px;border:1px solid #c5d5e4;border-radius:10px;background:#f6f9fc;color:#243a50}.career-chat-references a{color:#124c83;text-decoration:underline;overflow-wrap:anywhere}
