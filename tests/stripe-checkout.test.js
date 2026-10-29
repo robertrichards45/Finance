@@ -32,3 +32,9 @@ test('signed paid test checkout can be recorded; unpaid and live events are reje
  const unpaid=structuredClone(event);unpaid.data.object.payment_status='unpaid';const [p,h]=signed(unpaid);assert.throws(()=>parsePaidCheckoutEvent(p,h,secret),/unpaid/);
  const live=structuredClone(event);live.livemode=true;const [lp,lh]=signed(live);assert.throws(()=>parsePaidCheckoutEvent(lp,lh,secret),/unpaid/);
 });
+
+test('checkout rejects unexpected live response or external redirect',async()=>{
+ const base={secretKey:'sk_test_dummy',priceId:'price_123',orderId:'cl_'+'a'.repeat(32),baseUrl:'https://resumebuilder.shop',email:'test@example.com'};
+ await assert.rejects(createTestCheckout({...base,fetchImpl:async()=>({ok:true,json:async()=>({livemode:true,id:'cs_live_123',url:'https://checkout.stripe.com/c/pay/cs_live_123'})})}),/Invalid test checkout response/);
+ await assert.rejects(createTestCheckout({...base,fetchImpl:async()=>({ok:true,json:async()=>({livemode:false,id:'cs_test_123',url:'https://evil.example/checkout'})})}),/Invalid test checkout response/);
+});
