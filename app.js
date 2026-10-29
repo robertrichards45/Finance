@@ -59,7 +59,7 @@
  }
  async function portal(){const fragment=new URLSearchParams(location.hash.slice(1)),token=fragment.get('token'),order=fragment.get('order');if(token){history.replaceState(null,'','/portal?qa=1');try{await api('/api/auth/verify',{method:'POST',body:{token}});config=await api('/api/config');}catch(e){notice(e.message,true);}}
   $('login-form').addEventListener('submit',async e=>{e.preventDefault();e.submitter.disabled=true;try{const r=await api('/api/auth/login',{method:'POST',body:{email:$('email').value}});notice(r.message);}catch(error){notice(error.message,true);}finally{e.submitter.disabled=false;}});
-  if(!config.intakeEnabled&&!(config.sandboxTestAccess&&new URLSearchParams(location.search).get('qa')==='1')){notice('Customer checkout is being activated. You can explore services and pricing while secure payments are finalized.');$('login-form').querySelector('button').disabled=true;return;}
+  if(!config.intakeEnabled&&!config.sandboxTestAccess){notice('Customer checkout is being activated. You can explore services and pricing while secure payments are finalized.');$('login-form').querySelector('button').disabled=true;return;}
   try{session=await api('/api/session');}catch{return;}$('login-panel').hidden=true;$('account-panel').hidden=false;$('account-email').textContent=session.email;
   $('logout').addEventListener('click',async()=>{try{await api('/api/auth/logout',{method:'POST',body:{}});location.href='/portal';}catch(e){notice(e.message,true);}});
   $('support-form').addEventListener('submit',async e=>{e.preventDefault();try{await api('/api/support',{method:'POST',body:{message:$('support-message').value}});$('support-message').value='';notice('Your support request has been recorded.');}catch(error){notice(error.message,true);}});
