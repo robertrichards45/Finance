@@ -24,3 +24,46 @@ test('a checkout cannot grant a different customer subscription access',async()=
 test('sandbox grants, customers and processed events cannot carry into live mode',async()=>{const s=setup();try{await s.paid();const live=new Billing(s.store,{...s.config,stripeLive:true},{stripe:s.sdk,now:()=>s.getTime()});assert.equal(s.billing.access(s.user.owner).active,true);assert.equal(live.access(s.user.owner).active,false);assert.equal(live.store.get('billing_customer',s.user.owner),null);assert.equal(live.store.list('billing_event').length,0);}finally{s.close();}});
 
 test('checkout status belongs only to its customer and becomes paid after verified Stripe payment',async()=>{const s=setup();try{assert.equal(s.billing.summary(s.user.owner).lastCheckout,null);await s.billing.checkout(s.user,'monthly');assert.deepEqual(s.billing.summary(s.user.owner).lastCheckout,{status:'pending',planId:'monthly'});assert.equal(s.billing.summary('unrelated-owner').lastCheckout,null);await s.paid('monthly');assert.deepEqual(s.billing.summary(s.user.owner).lastCheckout,{status:'paid',planId:'monthly'});assert.equal(s.billing.summary(s.user.owner).access.active,true);}finally{s.close();}});
+
+test('annual paid invoice grants a full-year term, renews once per verified invoice and ends after cancellation',async()=>{
+ const s=setup();
+ try{
+  await s.paid('annual');
+  const started=s.getTime(),first=s.billing.access(s.user.owner);
+  assert.equal(first.active,true);
+  assert.equal(first.planId,'annual');
+  assert.equal(first.expiresAt,started+365*86400000);
+  assert.equal(first.renews,true);
+  const amount=s.billing.store.list('billing_payment',s.user.owner);
+  assert.equal(amount.length,1);
+  await s.billing.event(s.event('checkout.session.completed',Object.values(s.sessions)[0],'evt_replay'));
+  assert.equal(s.billing.store.list('billing_payment',s.user.owner).length,1);
+  const invoice=s.invoices.in_fixture;invoice.lines[0].period.end+=365*86400;
+  await s.billing.event(s.event('invoice.paid',{id:invoice.id},'evt_annual_renewed'));
+  const renewed=s.billing.access(s.user.owner);
+  assert.equal(renewed.expiresAt,first.expiresAt+365*86400000);
+  assert.equal(s.billing.store.list('billing_payment',s.user.owner).length,1,'the same invoice must not be double-counted');
+  s.subs.sub_fixture.cancel_at_period_end=true;
+  await s.billing.event(s.event('customer.subscription.updated',{id:'sub_fixture'},'evt_annual_cancel'));
+  assert.equal(s.billing.access(s.user.owner).active,true);
+  assert.equal(s.billing.access(s.user.owner).renews,false);
+  s.setTime(renewed.expiresAt+1);
+  s.subs.sub_fixture.status='canceled';
+  await s.billing.event(s.event('customer.subscription.deleted',{id:'sub_fixture'},'evt_annual_deleted'));
+  assert.equal(s.billing.access(s.user.owner).active,false);
+  assert.throws(()=>s.billing.require(s.user.owner),/Choose a paid access plan/);
+ }finally{s.close();}
+});
+test('a completed but unpaid Stripe checkout never grants a seven-day document entitlement',async()=>{
+ const s=setup();
+ try{
+  await s.billing.checkout(s.user,'access7');
+  const checkout=Object.values(s.sessions)[0];
+  checkout.status='complete';checkout.payment_status='unpaid';
+  await s.billing.event(s.event('checkout.session.completed',checkout,'evt_without_payment'));
+  assert.equal(s.billing.access(s.user.owner).active,false);
+  assert.equal(s.billing.store.list('billing_payment',s.user.owner).length,0);
+  assert.equal(s.billing.summary(s.user.owner).lastCheckout.status,'pending');
+  assert.throws(()=>s.billing.require(s.user.owner),/Choose a paid access plan/);
+ }finally{s.close();}
+});
