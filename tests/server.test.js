@@ -23,3 +23,5 @@ test('builder includes a live preview and serves its script',async()=>{const pag
 test('legacy per-application checkout is not advertised',async()=>{const home=await (await fetch(base+'/')).text();const portal=await (await fetch(base+'/app.js')).text();assert.doesNotMatch(home,/\$99|Per application; one-time/i);assert.doesNotMatch(portal,/Pay \$|Stripe test mode/i)});
 
 test('builder exposes section ordering controls',async()=>{const page=await (await fetch(base+'/start')).text();assert.match(page,/id="section-order"/);for(const section of ['summary','skills','experience','education'])assert.ok(page.includes('data-section="'+section+'"'));});
+
+test('application script is a single self-contained program',async()=>{const response=await fetch(base+'/app.js');assert.equal(response.status,200);const js=await response.text();assert.equal((js.match(/\}\)\(\);/g)||[]).length,1);assert.doesNotThrow(()=>new (require('node:vm').Script)(js));});
