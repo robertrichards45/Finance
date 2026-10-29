@@ -29,7 +29,7 @@ test('signed paid test checkout can be recorded; unpaid and live events are reje
  const signed=x=>{const payload=Buffer.from(JSON.stringify(x));const digest=crypto.createHmac('sha256',secret).update(now+'.').update(payload).digest('hex');return [payload,'t='+now+',v1='+digest]};
  const [payload,header]=signed(event);assert.equal(parsePaidCheckoutEvent(payload,header,secret).orderId,orderId);
  assert.throws(()=>parsePaidCheckoutEvent(payload,header+'bad',secret),/signature/);
- const unpaid=structuredClone(event);unpaid.data.object.payment_status='unpaid';const [p,h]=signed(unpaid);assert.throws(()=>parsePaidCheckoutEvent(p,h,secret),/unpaid/);
+ const unpaid=structuredClone(event);unpaid.data.object.payment_status='unpaid';const [p,h]=signed(unpaid);assert.equal(parsePaidCheckoutEvent(p,h,secret),null);
  const live=structuredClone(event);live.livemode=true;const [lp,lh]=signed(live);assert.throws(()=>parsePaidCheckoutEvent(lp,lh,secret),/unpaid/);
 });
 
@@ -40,3 +40,6 @@ test('checkout rejects unexpected live response or external redirect',async()=>{
 });
 
 test('checkout rejects a misleading Stripe-looking URL host',async()=>{const base={secretKey:'sk_test_dummy',priceId:'price_123',orderId:'cl_'+'a'.repeat(32),baseUrl:'https://resumebuilder.shop',email:'test@example.com'};await assert.rejects(createTestCheckout({...base,fetchImpl:async()=>({ok:true,json:async()=>({livemode:false,id:'cs_test_123',url:'https://checkout.stripe.com.evil.example/pay'})})}),/Invalid test checkout response/);});
+
+test('restricted sandbox keys work and checkout creation has a stable idempotency key',async()=>{let key;const options={secretKey:'rk_test_dummy',priceId:'price_123',orderId:'cl_'+'c'.repeat(32),baseUrl:'https://resumebuilder.shop',email:'test@example.com',fetchImpl:async(url,opts)=>{const body=new URLSearchParams(opts.body);assert.equal(body.has('payment_method_types'),false);assert.equal(body.has('automatic_tax[enabled]'),false);assert.match(body.get('integration_identifier'),/_[a-z]{8}$/);assert.ok(body.get('success_url').includes('#order=cl_'));assert.equal(key===undefined||key===opts.headers['Idempotency-Key'],true);key=opts.headers['Idempotency-Key'];return {ok:true,json:async()=>({id:'cs_test_abc',livemode:false,url:'https://checkout.stripe.com/c/pay/cs_test_abc'})}}};await createTestCheckout(options);await createTestCheckout(options);assert.ok(key);});
+test('delayed success is recognized only after a signed paid event',()=>{const secret='whsec_example',timestamp=Math.floor(Date.now()/1000),orderId='cl_'+'c'.repeat(32),event={id:'evt_delayed',livemode:false,type:'checkout.session.async_payment_succeeded',data:{object:{id:'cs_test_delayed',livemode:false,mode:'payment',payment_status:'paid',client_reference_id:orderId,metadata:{order_id:orderId},amount_total:9900,currency:'usd'}}};const payload=Buffer.from(JSON.stringify(event)),signature=crypto.createHmac('sha256',secret).update(timestamp+'.').update(payload).digest('hex');assert.equal(parsePaidCheckoutEvent(payload,'t='+timestamp+',v1='+signature,secret).sessionId,'cs_test_delayed');});

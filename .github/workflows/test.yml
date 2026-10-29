@@ -21,4 +21,4 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm test
       - run: node scripts/verify-documents.js
-      - run: node --check app.js && node --check server.js
+      - run: node --check app.js && node --check server.js && node --check order.js && node --check templates.js && node --check builder-preview.js
