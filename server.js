@@ -27,8 +27,8 @@ function createApp({config=configuration(),store,service}={}){
     if(!config.stripeConfigured||!config.stripeTestMode||!store)return send(503,{error:'Test webhook is not configured'});
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>65536)fail(413,'Webhook too large');chunks.push(chunk)}
     let event;try{event=parsePaidCheckoutEvent(Buffer.concat(chunks),req.headers['stripe-signature'],config.stripeWebhookSecret)}catch{return send(400,{error:'Invalid Stripe event'})}
-    if(event){const order=store.get('order',event.orderId);if(!order||event.amountTotal!==config.priceCents||event.currency!=='usd')return send(400,{error:'Checkout does not match order'});
-     if(!store.get('stripe_event',event.eventId)){store.put('stripe_event',event.eventId,order.owner,'processed',{orderId:order.id,sessionId:event.sessionId});store.put('order',order.id,order.owner,order.status,{...order.data,payment:{status:'paid_test',sessionId:event.sessionId,amount:event.amountTotal,currency:'usd',recordedAt:Date.now()}})}}
+    if(event){const order=store.get('order',event.orderId);if(!order||event.amountTotal!==config.priceCents||event.currency!=='usd'||order.data.checkoutSessionId!==event.sessionId)return send(400,{error:'Checkout does not match order'});
+     if(!store.get('stripe_event',event.eventId)&&order.data.payment?.status!=='paid_test'){store.put('stripe_event',event.eventId,order.owner,'processed',{orderId:order.id,sessionId:event.sessionId});store.put('order',order.id,order.owner,order.status,{...order.data,payment:{status:'paid_test',sessionId:event.sessionId,amount:event.amountTotal,currency:'usd',recordedAt:Date.now()}})}}
     return send(200,{received:true});
    }
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.enabled&&config.stripeConfigured&&config.stripeTestMode),intakeEnabled:config.enabled});
@@ -61,7 +61,7 @@ function createApp({config=configuration(),store,service}={}){
      if(req.method==='PUT'&&!action)return send(200,service.update(id,session,await jsonBody(req)));
      if(req.method==='POST'&&['generate','revise'].includes(action)){const b=await jsonBody(req,5000);return send(202,service.queue(id,session,b.instructions));}
      if(req.method==='PUT'&&action==='draft'){const b=await jsonBody(req,50000);return send(200,await service.editDraft(id,session,b.draft));}
-     if(req.method==='POST'&&action==='checkout'){if(!config.stripeConfigured||!config.stripeTestMode)fail(503,'Test checkout is not configured.');const order=service.own(id,session);if(!['draft','review'].includes(order.status))fail(409,'Order is not eligible for test checkout.');const checkout=await createTestCheckout({secretKey:config.stripeSecretKey,priceId:config.stripePriceId,orderId:id,baseUrl:config.baseUrl,email:session.data.email});return send(200,{url:checkout.url,testMode:true});}
+     if(req.method==='POST'&&action==='checkout'){if(!config.stripeConfigured||!config.stripeTestMode)fail(503,'Test checkout is not configured.');const order=service.own(id,session);if(!['draft','review'].includes(order.status))fail(409,'Order is not eligible for test checkout.');const checkout=await createTestCheckout({secretKey:config.stripeSecretKey,priceId:config.stripePriceId,orderId:id,baseUrl:config.baseUrl,email:session.data.email});const current=service.own(id,session);store.put('order',current.id,current.owner,current.status,{...current.data,checkoutSessionId:checkout.id});return send(200,{url:checkout.url,testMode:true});}
      if(req.method==='POST'&&action==='approve')return send(200,service.approve(id,session,await jsonBody(req,2000)));
      if(req.method==='POST'&&action==='download'){const b=await jsonBody(req,1024);return send(200,{url:service.downloadLink(id,session,b.filename)});}
     }
