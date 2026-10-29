@@ -10,6 +10,10 @@ const {extractUpload}=require('./lib/uploads');
 const {Billing}=require('./lib/billing');
 const {answerQuestion}=require('./lib/site-assistant');
 const analytics=require('./lib/analytics');
+const telemetry=require('./lib/telemetry');
+const backups=require('./lib/backups');
+const crypto=require('node:crypto');
+const {importJob}=require('./lib/job-import');
 const {sendWeeklyReport}=require('./lib/weekly-report');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
 const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/guided-builder.js':'guided-builder.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
@@ -39,11 +43,13 @@ function createApp({config=configuration(),store,service,billing:billingOverride
  const sandboxSession=session=>Boolean(config.sandboxEnabled&&session?.admin);
  const rate=new Map();let lastPrune=0;
  const server=http.createServer(async(req,res)=>{
-  const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",'Cache-Control':'no-store','X-Robots-Tag':'noindex'};
+  const requestId=crypto.randomUUID();
+  const headers={'X-Request-ID':requestId,'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",'Cache-Control':'no-store','X-Robots-Tag':'noindex'};
   if(config.production)headers['Strict-Transport-Security']='max-age=31536000';
   function send(status,body,type='application/json; charset=utf-8',extra={}){if(res.writableEnded)return;res.writeHead(status,{...headers,'Content-Type':type,...extra});res.end(req.method==='HEAD'?undefined:(type.startsWith('application/json')?JSON.stringify(body):body));}
   try{
    const url=new URL(req.url,'http://localhost'),route=url.pathname;
+   if(route==='/start'&&req.method==='GET'&&!/bot|crawl|spider/i.test(req.headers['user-agent']||''))telemetry.hit(store,'builder_opened');
    if(req.headers.host==='www.resumebuilder.shop'&&['GET','HEAD'].includes(req.method))return send(308,'','text/plain',{Location:config.baseUrl+url.pathname+url.search});
    if(['GET','HEAD'].includes(req.method)&&['/','/index.html','/services','/resume-builder','/federal-resume-guide','/federal','/private-sector','/contact','/policies','/privacy.html','/terms.html','/sitemap.xml','/robots.txt'].includes(route))delete headers['X-Robots-Tag'];
    if(route==='/api/stripe/webhook'&&req.method==='POST'){
@@ -85,8 +91,8 @@ function createApp({config=configuration(),store,service,billing:billingOverride
     if(route==='/api/billing/refresh'&&req.method==='POST'){await jsonBody(req,1024);await billing.checkCatalog();await billing.refresh(session.owner);return send(200,billing.summary(session.owner,{sandbox:sandboxSession(session)}));}
     if(route==='/api/billing/checkout'&&req.method==='POST'){const b=await jsonBody(req,1024);if(!store.quota('checkout:'+session.owner,20,3600000))fail(429,'Too many checkout requests.');return send(200,await billing.checkout(session,b.planId));}
     if(route==='/api/billing/portal'&&req.method==='POST'){await jsonBody(req,1024);return send(200,await billing.portal(session));}
-    if(config.billingRequired&&(!((route==='/api/orders'&&req.method==='POST')||(/^\/api\/orders\/cl_[a-f0-9]{32}$/.test(route)&&req.method==='PUT')||route.endsWith('/duplicate')||route==='/api/uploads')&&((req.method!=='GET'&&req.method!=='HEAD'&&req.method!=='DELETE'&&!['/api/support'].includes(route))||route.startsWith('/api/download/')))){await billing.checkCatalog();await billing.refresh(session.owner);}
-    if(req.method==='POST'&&route==='/api/uploads'){if(!store.quota('upload:'+session.owner,15,3600000))fail(429,'Upload limit reached.');const upload=await jsonBody(req,2900000);if(upload.consent!==true)fail(400,'Consent is required before processing an upload.');return send(200,await extractUpload(upload,config));}
+    if(config.billingRequired&&(!((route==='/api/orders'&&req.method==='POST')||(/^\/api\/orders\/cl_[a-f0-9]{32}$/.test(route)&&req.method==='PUT')||route.endsWith('/duplicate')||route==='/api/uploads'||route==='/api/job-import')&&((req.method!=='GET'&&req.method!=='HEAD'&&req.method!=='DELETE'&&!['/api/support'].includes(route))||route.startsWith('/api/download/')))){await billing.checkCatalog();await billing.refresh(session.owner);}
+    if(req.method==='POST'&&route==='/api/uploads'||route==='/api/job-import'){if(!store.quota('upload:'+session.owner,15,3600000))fail(429,'Upload limit reached.');const upload=await jsonBody(req,2900000);if(upload.consent!==true)fail(400,'Consent is required before processing an upload.');return send(200,await extractUpload(upload,config));}
     if(req.method==='POST'&&route==='/api/support'){const b=await jsonBody(req,5000);return send(201,service.support(session,b.message));}
     if(route==='/api/orders'){
      if(req.method==='GET')return send(200,{orders:service.list(session)});
@@ -98,7 +104,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
      if(req.method==='GET'&&!action)return send(200,service.view(service.own(id,session)));
      if(req.method==='DELETE'&&!action){service.remove(id,session);return send(200,{deleted:true});}
      if(req.method==='PUT'&&!action)return send(200,service.update(id,session,await jsonBody(req)));
-     if(req.method==='POST'&&['generate','revise'].includes(action)){const b=await jsonBody(req,5000);return send(202,service.queue(id,session,b.instructions));}
+     if(req.method==='POST'&&['generate','revise'].includes(action)){const b=await jsonBody(req,5000);return send(202,service.queue(id,session,b.instructions,b.section));}
      if(req.method==='POST'&&action==='manual'){await jsonBody(req,1024);return send(200,service.manual(id,session));}
      if(req.method==='PUT'&&action==='draft'){const b=await jsonBody(req,50000);return send(200,await service.editDraft(id,session,b.draft));}
      if(req.method==='POST'&&action==='checkout')fail(503,'Legacy checkout is unavailable while new subscription plans are being built.');
@@ -111,13 +117,14 @@ function createApp({config=configuration(),store,service,billing:billingOverride
    if(!['GET','HEAD'].includes(req.method))return send(405,'Method not allowed','text/plain');
    const filename=ROUTES[route];if(!filename)return send(404,'Not found','text/plain');
    let data=await fs.readFile(path.join(__dirname,filename));if(filename.endsWith('.html'))data=consistentSiteLayout(data.toString('utf8'));const visitorCookie=analytics.recordVisit(store,req,route,config.production);return send(200,data,MIME[path.extname(filename)]||'text/plain',visitorCookie?{'Set-Cookie':visitorCookie}:{});
-  }catch(error){const status=error.status||500;send(status,{error:status<500?error.message:status===503?error.message:'Unable to complete this request. Please retry or contact support.'});}
+  }catch(error){const status=error.status||500;if(status>=500)console.error(JSON.stringify({event:'request_failed',requestId,status,category:error.name==='Error'?'operation':error.name}));send(status,{error:status<500?error.message:status===503?error.message:'Unable to complete this request. Please retry or contact support.'});}
  });
  server.requestTimeout=20000;server.headersTimeout=10000;server.maxHeadersCount=50;
- let timer,reportTimer,reportBusy=false;
+ let timer,reportTimer,backupTimer,reportBusy=false,backupBusy=false;
+ const backupCheck=async()=>{if(backupBusy)return;backupBusy=true;try{await backups.runScheduled(store,path.join(config.dataDir,'backups'));}catch{console.error('Scheduled encrypted backup failed');if(store.quota('backup-alert',1,86400000))service?.enqueueMail(config.adminEmail,'CareerLaunch AI: backup needs attention','Review the backup status in the administrator dashboard. Current local backup may be unavailable.','backup-alert-'+new Date().toISOString().slice(0,10));}finally{backupBusy=false;}};
  const reportCheck=async()=>{if(reportBusy)return;reportBusy=true;try{await sendWeeklyReport({store,config});}catch{console.error('Weekly report delivery failed; will retry.');}finally{reportBusy=false;}};
- server.on('listening',()=>{if(config.production&&billing&&config.billingConfigured){billing.checkCatalog().then(()=>console.info('Stripe preflight: catalog verified')).catch(error=>console.error('Stripe preflight',{stage:billing.catalogStage||'configuration',type:error.type||error.name||'unknown',status:Number(error.statusCode)||null,code:typeof error.code==='string'?error.code.slice(0,60):null}));}if((config.enabled||config.sandboxEnabled||config.adminPreviewEnabled)&&service){timer=setInterval(()=>service.tick().catch(()=>{}),2000);timer.unref();}if(store&&config.emailKey&&config.adminEmail){reportCheck();reportTimer=setInterval(reportCheck,15*60000);reportTimer.unref();}});
- server.on('close',()=>{clearInterval(timer);clearInterval(reportTimer);if(ownStore)store.close();});
+ server.on('listening',()=>{if(config.production&&ownStore){backupCheck();backupTimer=setInterval(backupCheck,3600000);backupTimer.unref();}if(config.production&&billing&&config.billingConfigured){billing.checkCatalog().then(()=>console.info('Stripe preflight: catalog verified')).catch(error=>console.error('Stripe preflight',{stage:billing.catalogStage||'configuration',type:error.type||error.name||'unknown',status:Number(error.statusCode)||null,code:typeof error.code==='string'?error.code.slice(0,60):null}));}if((config.enabled||config.sandboxEnabled||config.adminPreviewEnabled)&&service){timer=setInterval(()=>service.tick().catch(()=>{}),2000);timer.unref();}if(store&&config.emailKey&&config.adminEmail){reportCheck();reportTimer=setInterval(reportCheck,15*60000);reportTimer.unref();}});
+ server.on('close',()=>{clearInterval(timer);clearInterval(reportTimer);clearInterval(backupTimer);if(ownStore)store.close();});
  server.service=service;server.billing=billing;return server;
 }
 const app=createApp();
