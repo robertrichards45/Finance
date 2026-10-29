@@ -13,6 +13,14 @@ const analytics=require('./lib/analytics');
 const {sendWeeklyReport}=require('./lib/weekly-report');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
 const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
+function consistentSiteLayout(html){
+ const nav="<header class=\"site-header\"><a class=\"logo\" href=\"/\">CareerLaunch<span>AI</span><span class=\"logo-dot\" aria-hidden=\"true\"></span></a><nav aria-label=\"Main navigation\"><a href=\"/resume-builder\">Résumé builder</a><a href=\"/services\">Services</a><a href=\"/templates\">Résumé designs</a><a href=\"/#pricing\">Pricing</a><a href=\"/#how\">How it works</a><a href=\"/portal\" class=\"nav-portal\">My applications <span aria-hidden=\"true\">↗</span></a></nav></header>";
+ const chat="<aside class=\"career-chat\" aria-label=\"CareerLaunch AI help\"><button id=\"career-chat-toggle\" class=\"career-chat-toggle\" type=\"button\" aria-controls=\"career-chat-panel\" aria-expanded=\"false\">Ask CareerLaunch AI ✦</button><section id=\"career-chat-panel\" class=\"career-chat-panel\" hidden><h2>Ask about résumés or federal hiring</h2><p class=\"fine\">Pricing, templates, cover letters, USAJOBS, veterans’ preference, military spouse hiring, and more. Guidance is informational; verify current rules with OPM and the hiring agency.</p><div id=\"career-chat-history\" class=\"career-chat-history\" role=\"log\" aria-live=\"polite\"><p class=\"career-chat-message career-chat-assistant\">Hi! What would you like to know about résumés, federal applications, or CareerLaunch AI?</p></div><form id=\"career-chat-form\"><label for=\"career-chat-question\">Your question</label><textarea id=\"career-chat-question\" rows=\"2\" maxlength=\"800\" required minlength=\"3\" placeholder=\"Do I qualify for veterans’ preference?\"></textarea><button class=\"button small\" id=\"career-chat-submit\" type=\"submit\">Ask question</button></form><p class=\"fine\">Do not share SSNs or other sensitive personal information.</p></section></aside>";
+ let result=html.replace(/<header class="site-header">[\s\S]*?<\/header>/i,nav);
+ if(!result.includes('id="career-chat-toggle"'))result=result.replace(/<\/body>/i,chat+'</body>');
+ if(!result.includes('src="/site-assistant.js"'))result=result.replace(/<\/head>/i,'<script src="/site-assistant.js" defer></script></head>');
+ return result;
+}
 function allowedBrowserOrigin(req,config){
  const origin=req.headers.origin;
  if(typeof origin!=='string')return false;
@@ -101,7 +109,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
    }
    if(!['GET','HEAD'].includes(req.method))return send(405,'Method not allowed','text/plain');
    const filename=ROUTES[route];if(!filename)return send(404,'Not found','text/plain');
-   const data=await fs.readFile(path.join(__dirname,filename));const visitorCookie=analytics.recordVisit(store,req,route,config.production);return send(200,data,MIME[path.extname(filename)]||'text/plain',visitorCookie?{'Set-Cookie':visitorCookie}:{});
+   let data=await fs.readFile(path.join(__dirname,filename));if(filename.endsWith('.html'))data=consistentSiteLayout(data.toString('utf8'));const visitorCookie=analytics.recordVisit(store,req,route,config.production);return send(200,data,MIME[path.extname(filename)]||'text/plain',visitorCookie?{'Set-Cookie':visitorCookie}:{});
   }catch(error){const status=error.status||500;send(status,{error:status<500?error.message:status===503?error.message:'Unable to complete this request. Please retry or contact support.'});}
  });
  server.requestTimeout=20000;server.headersTimeout=10000;server.maxHeadersCount=50;
