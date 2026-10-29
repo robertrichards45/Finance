@@ -11,3 +11,5 @@ test('public SEO pages declare canonical URLs',async()=>{for(const [route,canoni
 test('sample preview never offers a downloadable file',async()=>{const page=await (await fetch(base+'/order.html')).text();const script=await (await fetch(base+'/order.js')).text();assert.match(page,/Preview only/);assert.doesNotMatch(page,/id="download"|Download sample outline/);assert.doesNotMatch(script,/createObjectURL|\.download\s*=|getElementById\('download'\)/);});
 
 test('sample contains no generated resume text or file payload',async()=>{const js=await (await fetch(base+'/order.js')).text();assert.match(js,/sample-schematic/);assert.doesNotMatch(js,/PROFESSIONAL SUMMARY\\n|RELEVANT SKILLS\\n|createObjectURL|Blob\\(/);});
+
+test('sample uses the same branded header and footer as the site',async()=>{const html=await (await fetch(base+'/order.html')).text();assert.match(html,/class="site-header"/);assert.match(html,/class="page-heading shell"/);assert.match(html,/class="footer-top"/);assert.match(html,/href="\/portal"/);assert.match(html,/data-page="sample"/);});
