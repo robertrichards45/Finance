@@ -13,6 +13,16 @@ const analytics=require('./lib/analytics');
 const {sendWeeklyReport}=require('./lib/weekly-report');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
 const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
+function allowedBrowserOrigin(req,config){
+ const origin=req.headers.origin;
+ if(typeof origin!=='string')return false;
+ try{
+  const parsed=new URL(origin);
+  if(parsed.protocol!=='https:'&&!(parsed.protocol==='http:'&&['localhost','127.0.0.1'].includes(parsed.hostname)))return false;
+  const permitted=new Set([config.baseUrl,'https://resumebuilder.shop','https://www.resumebuilder.shop'].filter(Boolean).map(value=>new URL(value).origin));
+  return permitted.has(parsed.origin);
+ }catch{return false;}
+}
 function createApp({config=configuration(),store,service,billing:billingOverride}={}){
  let ownStore=false;
  if(!store&&config.dataDir&&/^[a-f0-9]{64}$/i.test(config.encryptionKey||'')){store=new Store({directory:config.dataDir,key:config.encryptionKey});ownStore=true;}
@@ -36,7 +46,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled});
    if(route==='/api/config'){const qa=sandboxSession(service?.session(cookie(req)));return send(200,{intakeEnabled:Boolean(config.enabled||qa),sandboxTestAccess:Boolean(config.adminPreviewEnabled),checkoutEnabled:Boolean(config.checkoutEnabled||qa&&config.sandboxCheckoutEnabled),billingTestMode:!config.stripeLive,aiDraftsPerMonth:config.aiDraftsPerMonth,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});}
    if(route==='/api/site-assistant'&&req.method==='POST'){
-    if(req.headers.origin!==config.baseUrl)fail(403,'Request origin is not allowed.');
+    if(!allowedBrowserOrigin(req,config))fail(403,'Request origin is not allowed.');
     const now=Date.now(),ip=req.socket.remoteAddress||'unknown',key='assistant:'+ip;
     const previous=rate.get(key);const entry=previous&&previous.until>now?previous:{count:0,until:now+3600000};
     if(++entry.count>12)fail(429,'Assistant question limit reached. Please try again later.');
@@ -52,7 +62,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
     const now=Date.now();if(now-lastPrune>60000){for(const [k,v]of rate)if(v.until<now)rate.delete(k);lastPrune=now;}
     const ip=req.socket.remoteAddress||'unknown',entry=rate.get(ip)||{count:0,until:now+60000};if(++entry.count>180)fail(429,'Too many requests. Try again shortly.');rate.set(ip,entry);
     const mutating=!['GET','HEAD'].includes(req.method);
-    if(mutating&&req.headers.origin!==config.baseUrl)fail(403,'Request origin is not allowed.');
+    if(mutating&&!allowedBrowserOrigin(req,config))fail(403,'Request origin is not allowed.');
     if(req.method==='POST'&&route==='/api/auth/login'){if(!config.enabled&&!config.adminPreviewEnabled)fail(503,'Customer accounts are not open yet.');const b=await jsonBody(req,1024);if(config.enabled||typeof b.email==='string'&&b.email.trim().toLowerCase()===config.adminEmail)service.requestLogin(b.email);return send(202,{message:'Check your inbox for a private sign-in link. It expires in 15 minutes.'});}
     if(req.method==='POST'&&route==='/api/auth/verify'){if(!config.enabled&&!config.adminPreviewEnabled)fail(503,'Customer accounts are not open yet.');const b=await jsonBody(req,1024),auth=service.verifyLogin(b.token);if(!config.enabled&&!service.session(auth.session)?.admin){service.logout(auth.session);fail(503,'Private sandbox accounts only.');}return send(200,{ok:true},MIME['.json'],{'Set-Cookie':'cl_session='+auth.session+'; Path=/; HttpOnly; SameSite=Strict; Max-Age=43200'+(config.production?'; Secure':'')});}
     const session=service.session(cookie(req));if(!session)fail(401,'Sign in to continue.');
