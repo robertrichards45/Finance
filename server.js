@@ -7,8 +7,8 @@ const {Store}=require('./lib/store');
 const {Service}=require('./lib/service');
 const {same,cookie,fail,jsonBody}=require('./lib/security');
 const {extractUpload}=require('./lib/uploads');
-const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml'};
-const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/mark.svg':'mark.svg'};
+const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
+const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
 function createApp({config=configuration(),store,service}={}){
  let ownStore=false;
  if(!store&&config.dataDir&&/^[a-f0-9]{64}$/i.test(config.encryptionKey||'')){store=new Store({directory:config.dataDir,key:config.encryptionKey});ownStore=true;}
@@ -21,6 +21,7 @@ function createApp({config=configuration(),store,service}={}){
   try{
    const url=new URL(req.url,'http://localhost'),route=url.pathname;
    if(req.headers.host==='www.resumebuilder.shop'&&['GET','HEAD'].includes(req.method))return send(308,'','text/plain',{Location:config.baseUrl+url.pathname+url.search});
+   if(['GET','HEAD'].includes(req.method)&&['/','/index.html','/services','/federal','/private-sector','/contact','/policies','/privacy.html','/terms.html','/sitemap.xml','/robots.txt'].includes(route))delete headers['X-Robots-Tag'];
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:false,intakeEnabled:config.enabled});
    if(route==='/api/config')return send(200,{intakeEnabled:config.enabled,checkoutEnabled:false,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});
    if(route.startsWith('/api/')){
