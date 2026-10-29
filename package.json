@@ -1,1 +1,12 @@
-{"name":"careerlaunch-ai","version":"0.1.0","private":true,"scripts":{"start":"node server.js"},"engines":{"node":">=20"}}
+{
+  "name": "careerlaunch-ai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
