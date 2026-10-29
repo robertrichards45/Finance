@@ -1,0 +1,10 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {createOrder,transition,safeOrderView}=require('../lib/order-state');
+const {reviewChecklist,assertApproval}=require('../lib/review-checklist');
+test('order IDs are distinct and non-sequential',()=>assert.notEqual(createOrder().id,createOrder().id));
+test('cannot skip payment-independent review process',()=>assert.throws(()=>transition(createOrder(),'delivered')));
+test('valid lifecycle advances',()=>{let o=createOrder();for(const s of ['consented','queued','generating','review','approved','delivered'])o=transition(o,s);assert.equal(o.status,'delivered');});
+test('public order view excludes private fields',()=>{const o={...createOrder(),email:'secret@example.com',experience:'private'};assert.equal(safeOrderView(o).email,undefined);});
+test('review requires all explicit confirmations',()=>{assert.equal(reviewChecklist({workHistory:true}).approved,false);assert.throws(()=>assertApproval({}));const a={workHistory:true,dates:true,education:true,credentials:true,achievements:true,targetJob:true};assert.equal(reviewChecklist(a).approved,true);});

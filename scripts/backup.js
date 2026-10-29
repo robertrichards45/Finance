@@ -1,0 +1,4 @@
+'use strict';
+// Run only on the mounted persistent volume. Do not pass keys on the command line.
+const fs=require('node:fs/promises');const path=require('node:path');const {DatabaseSync,backup}=require('node:sqlite');
+(async()=>{const source=process.env.DATA_DIR||process.env.RAILWAY_VOLUME_MOUNT_PATH,destination=process.argv[2];if(!source||!destination||!path.isAbsolute(destination))throw Error('Set DATA_DIR and supply an absolute backup destination.');const db=new DatabaseSync(path.join(source,'careerlaunch.sqlite'),{readOnly:true});try{await backup(db,destination);await fs.chmod(destination,0o600);console.log('Consistent encrypted-record snapshot created. Keep its encryption key separately.');}finally{db.close();}})().catch(()=>{console.error('Backup failed. Check the configured source, destination, and access permissions.');process.exitCode=1;});

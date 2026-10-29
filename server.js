@@ -1,1 +1,73 @@
-const http=require('node:http');const fs=require('node:fs');const path=require('node:path');const port=process.env.PORT||3000;const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8'};http.createServer((req,res)=>{const url=new URL(req.url,'http://localhost');const p=url.pathname==='/'?'/index.html':url.pathname;const file=path.resolve(__dirname,'.'+p);if(!file.startsWith(__dirname+path.sep)){res.writeHead(403).end();return;}fs.readFile(file,(err,data)=>{if(err){res.writeHead(404).end('Not found');return;}res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff'});res.end(data);});}).listen(port,()=>console.log('Listening on '+port));
+'use strict';
+const http=require('node:http');
+const fs=require('node:fs/promises');
+const path=require('node:path');
+const {configuration}=require('./lib/config');
+const {Store}=require('./lib/store');
+const {Service}=require('./lib/service');
+const {same,cookie,fail,jsonBody}=require('./lib/security');
+const {extractUpload}=require('./lib/uploads');
+const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml'};
+const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/mark.svg':'mark.svg'};
+function createApp({config=configuration(),store,service}={}){
+ let ownStore=false;
+ if(!store&&config.dataDir&&/^[a-f0-9]{64}$/i.test(config.encryptionKey||'')){store=new Store({directory:config.dataDir,key:config.encryptionKey});ownStore=true;}
+ service=service||(store?new Service(store,config):null);
+ const rate=new Map();let lastPrune=0;
+ const server=http.createServer(async(req,res)=>{
+  const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",'Cache-Control':'no-store','X-Robots-Tag':'noindex'};
+  if(config.production)headers['Strict-Transport-Security']='max-age=31536000';
+  function send(status,body,type='application/json; charset=utf-8',extra={}){if(res.writableEnded)return;res.writeHead(status,{...headers,'Content-Type':type,...extra});res.end(req.method==='HEAD'?undefined:(type.startsWith('application/json')?JSON.stringify(body):body));}
+  try{
+   const url=new URL(req.url,'http://localhost'),route=url.pathname;
+   if(req.headers.host==='www.resumebuilder.shop'&&['GET','HEAD'].includes(req.method))return send(308,'','text/plain',{Location:config.baseUrl+url.pathname+url.search});
+   if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:false,intakeEnabled:config.enabled});
+   if(route==='/api/config')return send(200,{intakeEnabled:config.enabled,checkoutEnabled:false,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});
+   if(route.startsWith('/api/')){
+    if(!service||!store)fail(503,'Customer services are not open yet. Please use the sample preview.');
+    const now=Date.now();if(now-lastPrune>60000){for(const [k,v]of rate)if(v.until<now)rate.delete(k);lastPrune=now;}
+    const ip=req.socket.remoteAddress||'unknown',entry=rate.get(ip)||{count:0,until:now+60000};if(++entry.count>180)fail(429,'Too many requests. Try again shortly.');rate.set(ip,entry);
+    const mutating=!['GET','HEAD'].includes(req.method);
+    if(mutating&&req.headers.origin!==config.baseUrl)fail(403,'Request origin is not allowed.');
+    if(req.method==='POST'&&route==='/api/auth/login'){if(!config.enabled)fail(503,'Customer accounts are not open yet.');const b=await jsonBody(req,1024);service.requestLogin(b.email);return send(202,{message:'Check your inbox for a private sign-in link. It expires in 15 minutes.'});}
+    if(req.method==='POST'&&route==='/api/auth/verify'){if(!config.enabled)fail(503,'Customer accounts are not open yet.');const b=await jsonBody(req,1024),auth=service.verifyLogin(b.token);return send(200,{ok:true},MIME['.json'],{'Set-Cookie':'cl_session='+auth.session+'; Path=/; HttpOnly; SameSite=Strict; Max-Age=43200'+(config.production?'; Secure':'')});}
+    const session=service.session(cookie(req));if(!session)fail(401,'Sign in to continue.');
+    if(mutating&&!same(req.headers['x-csrf-token'],session.data.csrf))fail(403,'Refresh the page and try again.');
+    if(req.method==='GET'&&route==='/api/session')return send(200,{email:session.data.email,csrf:session.data.csrf,admin:session.admin});
+    if(req.method==='POST'&&route==='/api/auth/logout'){service.logout(cookie(req));return send(200,{ok:true},MIME['.json'],{'Set-Cookie':'cl_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'+(config.production?'; Secure':'')});}
+    if(req.method==='GET'&&route==='/api/admin')return send(200,service.admin(session));
+    if(req.method==='POST'&&route==='/api/admin/support'){if(!session.admin)fail(403,'Administrator access required.');const b=await jsonBody(req,1024),r=store.get('support',b.id);if(!r)fail(404,'Request not found.');store.put('support',r.id,r.owner,'resolved',r.data);return send(200,{ok:true});}
+    if(!config.enabled)fail(503,'Customer processing is temporarily paused.');
+    if(req.method==='POST'&&route==='/api/uploads'){if(!store.quota('upload:'+session.owner,15,3600000))fail(429,'Upload limit reached.');const upload=await jsonBody(req,2900000);if(upload.consent!==true)fail(400,'Consent is required before processing an upload.');return send(200,await extractUpload(upload,config));}
+    if(req.method==='POST'&&route==='/api/support'){const b=await jsonBody(req,5000);return send(201,service.support(session,b.message));}
+    if(route==='/api/orders'){
+     if(req.method==='GET')return send(200,{orders:service.list(session)});
+     if(req.method==='POST')return send(201,service.create(await jsonBody(req),session));
+    }
+    const match=route.match(/^\/api\/orders\/(cl_[a-f0-9]{32})(?:\/(generate|revise|approve|draft|download))?$/);
+    if(match){const [,id,action]=match;
+     if(req.method==='GET'&&!action)return send(200,service.view(service.own(id,session)));
+     if(req.method==='DELETE'&&!action){service.remove(id,session);return send(200,{deleted:true});}
+     if(req.method==='PUT'&&!action)return send(200,service.update(id,session,await jsonBody(req)));
+     if(req.method==='POST'&&['generate','revise'].includes(action)){const b=await jsonBody(req,5000);return send(202,service.queue(id,session,b.instructions));}
+     if(req.method==='PUT'&&action==='draft'){const b=await jsonBody(req,50000);return send(200,await service.editDraft(id,session,b.draft));}
+     if(req.method==='POST'&&action==='approve')return send(200,service.approve(id,session,await jsonBody(req,2000)));
+     if(req.method==='POST'&&action==='download'){const b=await jsonBody(req,1024);return send(200,{url:service.downloadLink(id,session,b.filename)});}
+    }
+    if(req.method==='GET'&&/^\/api\/download\/[A-Za-z0-9_-]{43}$/.test(route)){const file=service.download(route.split('/').pop(),session);return send(200,file.bytes,file.filename.endsWith('.pdf')?'application/pdf':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',{'Content-Disposition':'attachment; filename="'+file.filename+'"'});}
+    fail(404,'Not found.');
+   }
+   if(!['GET','HEAD'].includes(req.method))return send(405,'Method not allowed','text/plain');
+   const filename=ROUTES[route];if(!filename)return send(404,'Not found','text/plain');
+   const data=await fs.readFile(path.join(__dirname,filename));return send(200,data,MIME[path.extname(filename)]||'text/plain');
+  }catch(error){const status=error.status||500;send(status,{error:status<500?error.message:status===503?error.message:'Unable to complete this request. Please retry or contact support.'});}
+ });
+ server.requestTimeout=20000;server.headersTimeout=10000;server.maxHeadersCount=50;
+ let timer;
+ server.on('listening',()=>{if(config.enabled&&service){timer=setInterval(()=>service.tick().catch(()=>{}),2000);timer.unref();}});
+ server.on('close',()=>{clearInterval(timer);if(ownStore)store.close();});
+ server.service=service;return server;
+}
+const app=createApp();
+if(require.main===module){app.listen(Number(process.env.PORT)||3000,'0.0.0.0',()=>console.log('CareerLaunch AI is listening'));for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>app.close(()=>process.exit(0)));}
+module.exports=app;module.exports.createApp=createApp;
