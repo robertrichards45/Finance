@@ -60,7 +60,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
     const event=billing.verify(Buffer.concat(chunks),req.headers['stripe-signature']);await billing.event(event);return send(200,{received:true});
    }
    if(route==='/ads.txt'&&['GET','HEAD'].includes(req.method)){const text=advertising.adsTxt(ads);return send(text?200:404,text||'Advertising is not configured.','text/plain; charset=utf-8');}
-   if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled,readinessBlockers:config.blockers});
+   if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled,readinessBlockers:config.blockers,backupStatus:store?.get('operations','backup')?.status||'pending',backupCreatedAt:store?.get('operations','backup')?.data.createdAt||null});
    if(route==='/api/config'){const qa=sandboxSession(service?.session(cookie(req)));return send(200,{intakeEnabled:Boolean(config.enabled||qa),sandboxTestAccess:Boolean(config.adminPreviewEnabled),checkoutEnabled:Boolean(config.checkoutEnabled||qa&&config.sandboxCheckoutEnabled),billingTestMode:!config.stripeLive,aiDraftsPerMonth:config.aiDraftsPerMonth,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});}
    if(route==='/api/site-assistant'&&req.method==='POST'){
     if(!allowedBrowserOrigin(req,config))fail(403,'Request origin is not allowed.');
@@ -110,7 +110,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
      if(req.method==='PUT'&&!action)return send(200,service.update(id,session,await jsonBody(req)));
      if(req.method==='POST'&&['generate','revise'].includes(action)){const b=await jsonBody(req,5000);return send(202,service.queue(id,session,b.instructions,b.section));}
      if(req.method==='POST'&&action==='manual'){await jsonBody(req,1024);return send(200,service.manual(id,session));}
-     if(req.method==='PUT'&&action==='draft'){const b=await jsonBody(req,50000);return send(200,await service.editDraft(id,session,b.draft));}
+     if(req.method==='PUT'&&action==='draft'){const b=await jsonBody(req,50000);return send(200,await service.editDraft(id,session,b.draft,{manualReviewOnly:b.manualReviewOnly===true}));}
      if(req.method==='POST'&&action==='checkout')fail(503,'Legacy checkout is unavailable while new subscription plans are being built.');
      if(req.method==='POST'&&action==='approve')return send(200,service.approve(id,session,await jsonBody(req,2000)));
      if(req.method==='POST'&&action==='download'){const b=await jsonBody(req,1024);return send(200,{url:service.downloadLink(id,session,b.filename)});}
