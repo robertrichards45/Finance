@@ -1,0 +1,10 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {issueToken,verifyToken}=require('../lib/token');
+const {newOrderId}=require('../lib/order-state');
+const secret='a'.repeat(48),orderId=newOrderId();
+test('signed token validates until expiry',()=>{const t=issueToken({orderId,secret,expiresAt:2000000000000});assert.equal(verifyToken(t,{secret,now:1900000000000}).orderId,orderId);assert.equal(verifyToken(t,{secret,now:2000000000000}),null)});
+test('tampered token fails',()=>{const t=issueToken({orderId,secret,expiresAt:2000000000000});assert.equal(verifyToken(t+'x',{secret}),null)});
+test('wrong secret fails',()=>{const t=issueToken({orderId,secret,expiresAt:2000000000000});assert.equal(verifyToken(t,{secret:'b'.repeat(48)}),null)});
+test('weak secret rejected',()=>assert.throws(()=>issueToken({orderId,secret:'abc',expiresAt:2000000000000})));
