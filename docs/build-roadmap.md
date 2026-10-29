@@ -1,11 +1,9 @@
-# Build order (payments last)
+# Build roadmap
 
-1. Browser-only intake and downloadable example outline (implemented in preview branch).
-2. Validation, test coverage, factual-content checks (validation and outline unit tests implemented).
-3. Production customer intake with secure file handling, privacy/retention, consent and rate limits (not implemented).
-4. Server-side AI drafting, prompt-injection defenses and accuracy review (not implemented).
-5. DOCX/PDF generation, secure storage, delivery links, email notifications and retries (not implemented).
-6. Order dashboard, monitoring, support and recovery (not implemented).
-7. Stripe Checkout and verified webhooks (LAST; not implemented).
+The previous prototype notes have been superseded by the implemented workflow.
 
-The current browser-only demo is not a production customer intake system. Never submit actual private applicant data to the demo.
+- [Current implementation and audit](audit.md)
+- [Deployment, configuration, costs and rollback](deployment.md)
+- [Acceptance evidence and remaining launch checks](acceptance.md)
+
+Customer processing and payments remain disabled until the documented launch gates are completed.
