@@ -59,4 +59,4 @@
  async function init(){try{config=await api('/api/config');document.querySelectorAll('[data-price]').forEach(e=>e.textContent=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(config.priceCents/100));document.querySelectorAll('[data-retention]').forEach(e=>e.textContent=config.retentionDays);}catch{}
   const page=document.body.dataset.page;try{if(page==='start')await start();if(page==='portal')await portal();if(page==='admin')await admin();}catch(e){notice(e.message,true);}}
  init();
-})()
+})();
