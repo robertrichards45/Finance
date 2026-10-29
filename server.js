@@ -51,7 +51,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>131072)fail(413,'Webhook too large');chunks.push(chunk);}
     const event=billing.verify(Buffer.concat(chunks),req.headers['stripe-signature']);await billing.event(event);return send(200,{received:true});
    }
-   if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled});
+   if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled,readinessBlockers:config.blockers});
    if(route==='/api/config'){const qa=sandboxSession(service?.session(cookie(req)));return send(200,{intakeEnabled:Boolean(config.enabled||qa),sandboxTestAccess:Boolean(config.adminPreviewEnabled),checkoutEnabled:Boolean(config.checkoutEnabled||qa&&config.sandboxCheckoutEnabled),billingTestMode:!config.stripeLive,aiDraftsPerMonth:config.aiDraftsPerMonth,priceCents:config.priceCents,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});}
    if(route==='/api/site-assistant'&&req.method==='POST'){
     if(!allowedBrowserOrigin(req,config))fail(403,'Request origin is not allowed.');
