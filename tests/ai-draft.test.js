@@ -1,0 +1,11 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {createMessages,validateDraft}=require('../lib/ai-draft');
+const {buildHtml}=require('../lib/draft-export');
+const input={package:'federal',role:'Program Analyst',skills:'Operational planning and analysis',experience:'Created and reviewed recurring reports for operational leadership.',jobPosting:'Analyze programs and prepare reports'};
+test('invalid input is rejected before AI',()=>assert.equal(createMessages({}).ok,false));
+test('AI prompt separates untrusted user data',()=>{const r=createMessages(input);assert.equal(r.ok,true);assert.equal(r.messages[0].role,'system');assert.match(r.messages[1].content,/untrusted/);});
+test('invalid AI output is rejected',()=>assert.equal(validateDraft('not json').ok,false));
+test('valid structured AI draft is accepted',()=>assert.equal(validateDraft({summary:'Summary',skills:'Skills',experienceBullets:['Worked'],coverLetter:'Letter',verificationQuestions:[]}).ok,true));
+test('HTML export escapes markup',()=>{const s=buildHtml({summary:'<script>alert(1)</script>',skills:'x',experienceBullets:[],coverLetter:'letter',verificationQuestions:[]},'Analyst');assert.doesNotMatch(s,/<script>/);assert.match(s,/&lt;script&gt;/);});
