@@ -13,3 +13,5 @@ test('sample preview never offers a downloadable file',async()=>{const page=awai
 test('sample contains no generated resume text or file payload',async()=>{const js=await (await fetch(base+'/order.js')).text();assert.match(js,/sample-schematic/);assert.doesNotMatch(js,/PROFESSIONAL SUMMARY\\n|RELEVANT SKILLS\\n|createObjectURL|Blob\\(/);});
 
 test('sample uses the same branded header and footer as the site',async()=>{const html=await (await fetch(base+'/order.html')).text();assert.match(html,/class="site-header"/);assert.match(html,/class="page-heading shell"/);assert.match(html,/class="footer-top"/);assert.match(html,/href="\/portal"/);assert.match(html,/data-page="sample"/);});
+
+test('design studio serves interactive templates and placeholder-only previews',async()=>{const page=await (await fetch(base+'/templates')).text();const script=await (await fetch(base+'/templates.js')).text();assert.match(page,/template-gallery/);assert.match(page,/studio-palette/);assert.match(script,/mock-watermark/);assert.match(script,/resume-mock/);assert.doesNotMatch(script,/createObjectURL|\.download\s*=/);});
