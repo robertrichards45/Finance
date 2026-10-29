@@ -34,3 +34,47 @@ test('seven-day manual editing works without granting AI drafting',async()=>{con
 test('private sandbox permits only the owner while public signup and payments stay closed',async()=>{const s=fixture();Object.assign(s.config,{enabled:false,checkoutEnabled:false,sandboxEnabled:true,sandboxCheckoutEnabled:true});const app=createApp({config:s.config,store:s.store,service:s.service,billing:s.billing});app.listen(0);await new Promise(r=>app.once('listening',r));const base='http://127.0.0.1:'+app.address().port;try{const publicState=await (await fetch(base+'/api/config')).json();assert.equal(publicState.intakeEnabled,false);assert.equal(publicState.checkoutEnabled,false);const before=s.store.list('login').length;const response=await fetch(base+'/api/auth/login',{method:'POST',headers:{Origin:s.config.baseUrl,'Content-Type':'application/json'},body:JSON.stringify({email:'not-owner@example.test'})});assert.equal(response.status,503);assert.equal(s.store.list('login').length,before);const admin=s.login(s.config.adminEmail);const headers={Origin:s.config.baseUrl,'Content-Type':'application/json',Cookie:'cl_session='+admin.token,'X-CSRF-Token':admin.data.csrf};const privateState=await (await fetch(base+'/api/config',{headers})).json();assert.equal(privateState.intakeEnabled,true);assert.equal(privateState.checkoutEnabled,true);const publicCookie={...headers,Cookie:'cl_session='+s.user.token,'X-CSRF-Token':s.user.data.csrf};assert.equal((await fetch(base+'/api/billing/checkout',{method:'POST',headers:publicCookie,body:JSON.stringify({planId:'access7'})})).status,503);assert.equal((await fetch(base+'/api/billing/checkout',{method:'POST',headers,body:JSON.stringify({planId:'access7'})})).status,200);}finally{await new Promise(r=>app.close(r));s.close();}});
 
 test('purchase-first login email retains a selected plan but never arbitrary redirect values',()=>{const s=fixture();try{const email='plan-buyer@example.test';s.service.requestLogin(email,'annual');const message=s.store.list('mail').find(r=>r.data.email===email)?.data.message;assert.match(message,/\/portal\?qa=1&plan=annual#token=/);const badEmail='unsafe-plan@example.test';s.service.requestLogin(badEmail,'https://evil.example/');const unsafe=s.store.list('mail').find(r=>r.data.email===badEmail)?.data.message;assert.match(unsafe,/\/portal\?qa=1#token=/);assert.doesNotMatch(unsafe,/evil\.example/);}finally{s.close();}});
+
+test('signed seven-day purchase unlocks editable Word/PDF documents, and expiry blocks retained links',async()=>{
+ const s=fixture(),app=createApp({config:s.config,store:s.store,service:s.service,billing:s.billing});
+ app.listen(0);await new Promise(resolve=>app.once('listening',resolve));
+ const base='http://127.0.0.1:'+app.address().port,headers={Origin:s.config.baseUrl,'Content-Type':'application/json',Cookie:'cl_session='+s.user.token,'X-CSRF-Token':s.user.data.csrf};
+ const request=(route,body={},method='POST')=>fetch(base+route,{method,headers,body:JSON.stringify(body)});
+ try{
+  assert.equal((await request('/api/orders',input)).status,402,'payment is required before creating an application');
+  const checkout=await request('/api/billing/checkout',{planId:'access7'});
+  assert.equal(checkout.status,200);
+  assert.match((await checkout.json()).url,/^https:\/\/checkout\.stripe\.com\//);
+  const pending=await (await fetch(base+'/api/billing',{headers})).json();
+  assert.equal(pending.lastCheckout.status,'pending');
+  assert.equal(pending.access.active,false);
+  const stripe=Object.values(s.sessions)[0];
+  stripe.status='complete';stripe.payment_status='paid';
+  const event=s.event('checkout.session.completed',stripe,'evt_seven_day_paid');
+  const payload=JSON.stringify(event);
+  assert.equal((await fetch(base+'/api/stripe/webhook',{method:'POST',headers:{'Stripe-Signature':'invalid'},body:payload})).status,400);
+  assert.equal(s.billing.access(s.user.owner).active,false);
+  const signature=s.sdk.webhooks.generateTestHeaderString({payload,secret:s.config.stripeWebhookSecret});
+  const hook=()=>fetch(base+'/api/stripe/webhook',{method:'POST',headers:{'Stripe-Signature':signature},body:payload});
+  assert.equal((await hook()).status,200);
+  assert.equal((await hook()).status,200,'duplicate webhooks are harmless');
+  const paid=await (await fetch(base+'/api/billing',{headers})).json();
+  assert.equal(paid.lastCheckout.status,'paid');
+  assert.equal(paid.access.planId,'access7');
+  assert.equal(paid.access.active,true);
+  assert.equal(paid.access.ai,false);
+  const created=await request('/api/orders',input);assert.equal(created.status,201);
+  const order=await created.json();
+  assert.equal((await request('/api/orders/'+order.id+'/manual')).status,200);
+  assert.equal((await request('/api/orders/'+order.id+'/draft',{draft:draft()},'PUT')).status,200);
+  const answers={workHistory:true,dates:true,education:true,credentials:true,achievements:true,targetJob:true};
+  assert.equal((await request('/api/orders/'+order.id+'/approve',answers)).status,200);
+  const kinds=['resume.pdf','resume.docx','cover.pdf','cover.docx'];
+  for(const filename of kinds){const response=await request('/api/orders/'+order.id+'/download',{filename});assert.equal(response.status,200,filename);const path=(await response.json()).url;const file=await fetch(base+path,{headers});assert.equal(file.status,200,filename);assert.ok((await file.arrayBuffer()).byteLength>500,filename);}
+  const held=(await (await request('/api/orders/'+order.id+'/download',{filename:'resume.pdf'})).json()).url;
+  s.setTime(paid.access.expiresAt+1);
+  const after=await (await fetch(base+'/api/billing',{headers})).json();
+  assert.equal(after.access.active,false);
+  assert.equal((await fetch(base+held,{headers})).status,402,'expired subscriptions cannot use previously issued download links');
+ }finally{await new Promise(resolve=>app.close(resolve));s.close();}
+});
