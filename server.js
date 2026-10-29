@@ -9,6 +9,7 @@ const {same,cookie,fail,jsonBody}=require('./lib/security');
 const {extractUpload}=require('./lib/uploads');
 const {answerQuestion}=require('./lib/site-assistant');
 const analytics=require('./lib/analytics');
+const {sendWeeklyReport}=require('./lib/weekly-report');
 const {createTestCheckout,parsePaidCheckoutEvent}=require('./lib/stripe-checkout');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
 const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
@@ -87,9 +88,10 @@ function createApp({config=configuration(),store,service}={}){
   }catch(error){const status=error.status||500;send(status,{error:status<500?error.message:status===503?error.message:'Unable to complete this request. Please retry or contact support.'});}
  });
  server.requestTimeout=20000;server.headersTimeout=10000;server.maxHeadersCount=50;
- let timer;
- server.on('listening',()=>{if(config.enabled&&service){timer=setInterval(()=>service.tick().catch(()=>{}),2000);timer.unref();}});
- server.on('close',()=>{clearInterval(timer);if(ownStore)store.close();});
+ let timer,reportTimer,reportBusy=false;
+ const reportCheck=async()=>{if(reportBusy)return;reportBusy=true;try{await sendWeeklyReport({store,config});}catch(error){console.error('Weekly report delivery failed; will retry.');}finally{reportBusy=false;}};
+ server.on('listening',()=>{if(config.enabled&&service){timer=setInterval(()=>service.tick().catch(()=>{}),2000);timer.unref();}if(store&&config.emailKey&&config.adminEmail){reportCheck();reportTimer=setInterval(reportCheck,15*60000);reportTimer.unref();}});
+ server.on('close',()=>{clearInterval(timer);clearInterval(reportTimer);if(ownStore)store.close();});
  server.service=service;return server;
 }
 const app=createApp();
