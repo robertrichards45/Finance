@@ -5,7 +5,7 @@ const path=require('node:path');
 const root=__dirname;
 const port=Number(process.env.PORT)||3000;
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.ico':'image/x-icon'};
-const allowed=new Set(['/','/index.html','/order.html','/styles.css','/robots.txt']);
+const allowed=new Set(['/','/index.html','/order.html','/styles.css','/order.js','/robots.txt']);
 const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",'Cache-Control':'no-store'};
 const app=http.createServer(async(req,res)=>{
   const send=(status,body,type='text/plain; charset=utf-8')=>{res.writeHead(status,{...headers,'Content-Type':type});res.end(body)};
