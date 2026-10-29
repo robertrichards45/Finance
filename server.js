@@ -43,7 +43,7 @@ function createApp({config=configuration(),store,service}={}){
     if(++entry.count>12)fail(429,'Assistant question limit reached. Please try again later.');
     rate.set(key,entry);
     const body=await jsonBody(req,2048);
-    if(!body||typeof body.question!=='string')fail(400,'Enter a question.');
+    if(!body||typeof body.question!=='string'||body.question.trim().length<3||body.question.length>800)fail(400,'Ask a question between 3 and 800 characters.');
     const result=await answerQuestion(body.question,{apiKey:config.apiKey,model:config.model});
     return send(200,result);
    }
