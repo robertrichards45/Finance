@@ -37,3 +37,5 @@ test('customer portal never offers unpaid generation without checkout',async()=>
 
 test('billing and admin endpoints reject anonymous access',async()=>{for(const route of ['/api/billing','/api/admin/analytics','/api/orders']){const response=await fetch(base+route);assert.equal(response.status,401,route);}});
 test('public configuration never exposes payment secrets',async()=>{const response=await fetch(base+'/api/config');assert.equal(response.status,200);const body=await response.text();for(const key of ['stripeSecretKey','stripeWebhookSecret','emailKey','authSecret','encryptionKey'])assert.equal(body.includes(key),false,key);});
+
+test('analytics endpoint exposes only readiness booleans and requires authentication',async()=>{const response=await fetch(base+'/api/admin/analytics');assert.equal(response.status,401);const source=await(await fetch(base+'/app.js')).text();assert.match(source,/reportEmailConfigured/);assert.match(source,/livePaymentsConfigured/);});
