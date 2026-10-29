@@ -8,6 +8,7 @@ const {Service}=require('./lib/service');
 const {same,cookie,fail,jsonBody}=require('./lib/security');
 const {extractUpload}=require('./lib/uploads');
 const {answerQuestion}=require('./lib/site-assistant');
+const analytics=require('./lib/analytics');
 const {createTestCheckout,parsePaidCheckoutEvent}=require('./lib/stripe-checkout');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8'};
 const ROUTES={'/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
@@ -29,7 +30,7 @@ function createApp({config=configuration(),store,service}={}){
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>65536)fail(413,'Webhook too large');chunks.push(chunk)}
     let event;try{event=parsePaidCheckoutEvent(Buffer.concat(chunks),req.headers['stripe-signature'],config.stripeWebhookSecret)}catch{return send(400,{error:'Invalid Stripe event'})}
     if(event){const order=store.get('order',event.orderId);if(!order||event.amountTotal!==config.priceCents||event.currency!=='usd'||order.data.checkoutSessionId!==event.sessionId)return send(400,{error:'Checkout does not match order'});
-     store.transaction(()=>{const latest=store.get('order',event.orderId);if(!latest||latest.data.checkoutSessionId!==event.sessionId)fail(400,'Checkout session changed');if(!store.get('stripe_event',event.eventId)&&latest.data.payment?.status!=='paid_test'){store.put('stripe_event',event.eventId,latest.owner,'processed',{orderId:latest.id,sessionId:event.sessionId});store.put('order',latest.id,latest.owner,latest.status,{...latest.data,payment:{status:'paid_test',sessionId:event.sessionId,amount:event.amountTotal,currency:'usd',recordedAt:Date.now()}})}})}
+     store.transaction(()=>{const latest=store.get('order',event.orderId);if(!latest||latest.data.checkoutSessionId!==event.sessionId)fail(400,'Checkout session changed');if(!store.get('stripe_event',event.eventId)&&latest.data.payment?.status!=='paid_test'){store.put('stripe_event',event.eventId,latest.owner,'processed',{orderId:latest.id,sessionId:event.sessionId,amountCents:event.amountTotal,currency:event.currency,analyticsWeek:analytics.weekKey()});store.put('order',latest.id,latest.owner,latest.status,{...latest.data,payment:{status:'paid_test',sessionId:event.sessionId,amount:event.amountTotal,currency:'usd',recordedAt:Date.now()}})}})}
     return send(200,{received:true});
    }
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.enabled&&config.stripeConfigured&&config.stripeTestMode),intakeEnabled:config.enabled});
@@ -82,7 +83,7 @@ function createApp({config=configuration(),store,service}={}){
    }
    if(!['GET','HEAD'].includes(req.method))return send(405,'Method not allowed','text/plain');
    const filename=ROUTES[route];if(!filename)return send(404,'Not found','text/plain');
-   const data=await fs.readFile(path.join(__dirname,filename));return send(200,data,MIME[path.extname(filename)]||'text/plain');
+   const data=await fs.readFile(path.join(__dirname,filename));const visitorCookie=analytics.recordVisit(store,req,route,config.production);return send(200,data,MIME[path.extname(filename)]||'text/plain',visitorCookie?{'Set-Cookie':visitorCookie}:{});
   }catch(error){const status=error.status||500;send(status,{error:status<500?error.message:status===503?error.message:'Unable to complete this request. Please retry or contact support.'});}
  });
  server.requestTimeout=20000;server.headersTimeout=10000;server.maxHeadersCount=50;
