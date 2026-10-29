@@ -39,3 +39,5 @@ test('billing and admin endpoints reject anonymous access',async()=>{for(const r
 test('public configuration never exposes payment secrets',async()=>{const response=await fetch(base+'/api/config');assert.equal(response.status,200);const body=await response.text();for(const key of ['stripeSecretKey','stripeWebhookSecret','emailKey','authSecret','encryptionKey'])assert.equal(body.includes(key),false,key);});
 
 test('analytics endpoint exposes only readiness booleans and requires authentication',async()=>{const response=await fetch(base+'/api/admin/analytics');assert.equal(response.status,401);const source=await(await fetch(base+'/app.js')).text();assert.match(source,/reportEmailConfigured/);assert.match(source,/livePaymentsConfigured/);});
+
+test('customer portal retains application list when billing refresh fails',async()=>{const response=await fetch(base+'/app.js');assert.equal(response.status,200);const source=await response.text();assert.match(source,/Billing status temporarily unavailable/);assert.match(source,/await orders\(\);if\(order/);assert.match(source,/Retry billing status/);});
