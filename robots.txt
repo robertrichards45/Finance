@@ -1,2 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /portal
+Disallow: /start
+Disallow: /order.html
+Sitemap: https://resumebuilder.shop/sitemap.xml
