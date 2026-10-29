@@ -27,7 +27,7 @@ function allowedBrowserOrigin(req,config){
  try{
   const parsed=new URL(origin);
   if(parsed.protocol!=='https:'&&!(parsed.protocol==='http:'&&['localhost','127.0.0.1'].includes(parsed.hostname)))return false;
-  const permitted=new Set([config.baseUrl,'https://resumebuilder.shop','https://www.resumebuilder.shop'].filter(Boolean).map(value=>new URL(value).origin));
+  const permitted=new Set([config.baseUrl,'https://resumebuilder.shop','https://www.resumebuilder.shop','https://finance-production-8730.up.railway.app'].filter(Boolean).map(value=>new URL(value).origin));
   return permitted.has(parsed.origin);
  }catch{return false;}
 }
