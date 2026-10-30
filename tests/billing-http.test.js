@@ -87,3 +87,25 @@ test('a server error queues one owner alert per 15 minutes, without customer dat
   s.service.list=real;const alerts=s.store.list('mail').filter(m=>m.data.subject==='Server error on resumebuilder.shop');
   assert.equal(alerts.length,1);assert.equal(alerts[0].data.email,'admin@example.test');assert.match(alerts[0].data.message,/GET \/api\/orders failed/);assert.doesNotMatch(alerts[0].data.message,/fictional@example/);
  }finally{app.close();s.close();}});
+test('admin sales view counts accounts and live payments by day, ignoring test payments',async()=>{const s=fixture();try{
+ s.store.put('billing_payment:live','pay_1',s.user.owner,'verified',{planId:'access7',amountCents:499,liveMode:true,currency:'usd'});
+ s.store.put('billing_payment:sandbox','pay_2',s.user.owner,'verified',{planId:'access7',amountCents:499,liveMode:false,currency:'usd'});
+ const sales=s.service.salesByDay(30);assert.equal(sales.days.length,30);assert.equal(sales.totals.payments,1);assert.equal(sales.totals.revenueCents,499);assert.ok(sales.totals.accounts>=1);
+}finally{s.close();}});
+test('follow-up reminder: needs a postal address, sends once, skips buyers and honors unsubscribe',async()=>{const s=fixture();try{
+ const day=86400000,later=Date.now()+2*day;
+ assert.equal(s.service.followUps(later),0,'no postal address configured, nothing sent');
+ s.config.postalAddress='PO Box 1, Example City, ST 00000';
+ assert.equal(s.service.followUps(Date.now()),0,'too soon after sign-up');
+ assert.equal(s.service.followUps(later),1);assert.equal(s.service.followUps(later),0,'only once');
+ const mail=s.store.list('mail').find(m=>m.id==='followup-'+s.user.owner);assert.match(mail.data.message,/Unsubscribe: .*\/unsubscribe\?u=/);assert.match(mail.data.message,/PO Box 1/);
+ const other=s.login('second@example.test');assert.equal(s.service.unsubscribe(other.owner,'bad'),false);assert.equal(s.service.unsubscribe(other.owner,s.service.unsubscribeToken(other.owner)),true);
+ assert.equal(s.service.followUps(later),0,'unsubscribed account skipped');
+}finally{s.close();}});
+test('LinkedIn text needs an AI plan and a draft, and is stored on the order',async()=>{const s=fixture();try{
+ s.service.linkedinImpl=async()=>({value:{headline:'Program Analyst | Reporting | Scheduling',about:'I prepare operational reports.',skills:['Reporting']},usage:{}});
+ const o=s.service.create(input,s.user);await assert.rejects(s.service.linkedin(o.id,s.user),e=>e.status===402);
+ await s.paid('monthly');await assert.rejects(s.service.linkedin(o.id,s.user),e=>e.status===409);
+ s.service.manual(o.id,s.user);const v=await s.service.linkedin(o.id,s.user);assert.match(v.headline,/Program Analyst/);
+ assert.equal(s.service.view(s.service.own(o.id,s.user)).linkedin.about,'I prepare operational reports.');
+}finally{s.close();}});
