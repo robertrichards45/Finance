@@ -170,3 +170,7 @@ body[data-page="sample"] .sample-form-panel .button{justify-self:start;margin-to
  .career-chat-toggle::after{content:"✦";font-size:22px;line-height:1}
  .career-chat-toggle[aria-expanded="true"]::after{content:"×";font-size:28px}
 }
+.iv-list{padding-left:20px;display:grid;gap:8px;margin:12px 0 0}
+.iv-list summary{cursor:pointer;font-weight:600;line-height:1.45}
+.iv-list ul{margin:8px 0 4px;padding-left:18px;display:grid;gap:4px}
+.vet-discount{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;margin:10px 0 16px;border:1px solid #d6e4f5;border-radius:12px;background:#f5f9ff;font-weight:600;line-height:1.4}.vet-discount input{margin-top:3px;width:18px;height:18px}.vet-price{color:#17603f;font-weight:700;margin:4px 0}

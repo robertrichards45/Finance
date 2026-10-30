@@ -71,3 +71,15 @@ test('a completed but unpaid Stripe checkout never grants a seven-day document e
 test('purchase and cancellation notifications follow verified lifecycle events without duplicate receipts',async()=>{const s=setup();try{await s.billing.checkout(s.user,'monthly');assert.equal(s.notifications.filter(n=>n.type==='payment_verified').length,0);await s.paid('monthly');assert.equal(s.notifications.filter(n=>n.type==='payment_verified').length,1);await s.billing.refresh(s.user.owner);assert.equal(s.notifications.filter(n=>n.type==='payment_verified').length,1);s.subs.sub_fixture.cancel_at_period_end=true;await s.billing.syncSubscription('sub_fixture');await s.billing.syncSubscription('sub_fixture');assert.equal(s.notifications.filter(n=>n.type==='subscription_canceled').length,1);}finally{s.close();}});
 
 test('federal package is offered only when its Stripe price is configured, and grants 30 days with 15 AI requests',async()=>{const s=setup();try{assert.equal(s.billing.summary(s.user.owner).plans.some(p=>p.id==='federal'),false);await assert.rejects(s.billing.checkout(s.user,'federal'),e=>e.status===400);s.config.stripePrices.federal='price_fed';assert.equal(s.billing.summary(s.user.owner).plans.some(p=>p.id==='federal'),true);await s.paid('federal');const a=s.billing.access(s.user.owner);assert.equal(a.planId,'federal');assert.equal(a.ai,true);assert.equal(a.renews,false);for(let i=0;i<15;i++)s.billing.reserveGeneration(s.user.owner);assert.throws(()=>s.billing.reserveGeneration(s.user.owner),/Federal Résumé Package AI requests/);}finally{s.close();}});
+test('veteran discount: 20% off one-time plans only, and settlement accepts exactly that discount',async()=>{const s=setup();try{
+ s.config.stripeVeteranCoupon='vet20';s.billing.catalogChecked=false;await s.billing.checkCatalog();
+ assert.equal(s.billing.summary(s.user.owner).veteranDiscount.percent,20);assert.equal(s.billing.veteranDiscount('monthly'),false);
+ await s.billing.checkout(s.user,'access7',{veteran:true});const x=Object.values(s.sessions||{}).at?.(-1);
+ const row=s.billing.store.list('billing_checkout').at(0);assert.equal(row.data.discountCents,100);assert.equal(row.data.coupon,'vet20');
+ const sess=await s.billing.stripe.checkout.sessions.retrieve(row.id);assert.equal(sess.amount_total,399);sess.status='complete';sess.payment_status='paid';await s.billing.settleCheckout(row.id);assert.equal(s.billing.access(s.user.owner).active,true);
+}finally{s.close();}});
+test('a discount that was not recorded at checkout is rejected',async()=>{const s=setup();try{
+ await s.billing.checkout(s.user,'access7');const row=s.billing.store.list('billing_checkout').at(0);
+ const sess=await s.billing.stripe.checkout.sessions.retrieve(row.id);sess.total_details.amount_discount=250;sess.amount_total=249;sess.status='complete';sess.payment_status='paid';
+ await assert.rejects(s.billing.settleCheckout(row.id),/total mismatch/);
+}finally{s.close();}});

@@ -24,3 +24,4 @@
 .jm-privacy{display:inline-flex;gap:8px;align-items:center;font-size:14px;color:#17603f;background:#eefaf3;border:1px solid #bfe6cf;padding:6px 12px;border-radius:999px}
 @media(max-width:760px){.jm-grid{grid-template-columns:1fr}.jm-grid textarea{min-height:220px}.jm-score{flex-direction:column;align-items:flex-start}}
 .jm-related{margin-top:22px}
+.cc-input{width:100%;padding:12px 14px;border:1px solid #c9cfe0;border-radius:10px;font:inherit;font-size:16px;background:#fff}

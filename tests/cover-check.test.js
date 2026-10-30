@@ -1,0 +1,5 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');const {check}=require('../cover-check.js');
+const good='Dear Hiring Manager,\n\nI am applying for the Logistics Coordinator role at Example Freight. In eight years as an Army supply sergeant I managed 1,200 line items with zero losses and trained 14 soldiers on property records. '.repeat(3)+'I would welcome a conversation about the role.';
+test('cover letter check flags clichés and missing employer',()=>{const r=check('To whom it may concern, I am a hard worker and team player. '.repeat(10),'',"Analyst",'Acme');const text=r.map(x=>x[1]).join(' ');assert.match(text,/Overused phrases/);assert.match(text,/employer by name/);assert.match(text,/To whom it may concern/);});
+test('cover letter check passes a specific, targeted letter',()=>{const r=check(good,'',"Logistics Coordinator",'Example Freight');assert.ok(r.some(x=>/Names the job title/.test(x[1])));assert.ok(r.some(x=>/specific numbers/.test(x[1])));});

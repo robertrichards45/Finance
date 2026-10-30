@@ -109,3 +109,9 @@ test('LinkedIn text needs an AI plan and a draft, and is stored on the order',as
  s.service.manual(o.id,s.user);const v=await s.service.linkedin(o.id,s.user);assert.match(v.headline,/Program Analyst/);
  assert.equal(s.service.view(s.service.own(o.id,s.user)).linkedin.about,'I prepare operational reports.');
 }finally{s.close();}});
+test('interview practice needs AI, a draft and a job posting',async()=>{const s=fixture();try{
+ s.service.interviewImpl=async()=>({value:{questions:[{question:'Tell me about reporting.',why:'Core duty.',outline:['Prepared operational reports.']}]},usage:{}});
+ const o=s.service.create(input,s.user);await assert.rejects(s.service.interview(o.id,s.user),e=>e.status===402);
+ await s.paid('monthly');s.service.manual(o.id,s.user);const v=await s.service.interview(o.id,s.user);assert.equal(v.questions.length,1);
+ assert.equal(s.service.view(s.service.own(o.id,s.user)).interview.questions[0].question,'Tell me about reporting.');
+}finally{s.close();}});
