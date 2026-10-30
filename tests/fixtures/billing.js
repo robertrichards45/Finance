@@ -16,7 +16,7 @@ function setup(){
  const event=(type,object,eventId='evt_'+type)=>({id:eventId,type,livemode:false,data:{object},created:Math.floor(Date.now()/1000)});
  async function paid(planId='access7',{settle=true}={}){
   await billing.checkout(user,planId);const s=Object.values(sessions).at(-1);s.status='complete';s.payment_status='paid';
-  if(planId!=='access7'){s.subscription='sub_fixture';const p=PLANS[planId];subs.sub_fixture={id:'sub_fixture',livemode:false,customer:s.customer,status:'active',cancel_at_period_end:false,latest_invoice:'in_fixture',items:{data:[{quantity:1,price:priceFor(config.stripePrices[planId])}]}};
+  if(PLANS[planId].billing==='subscription'){s.subscription='sub_fixture';const p=PLANS[planId];subs.sub_fixture={id:'sub_fixture',livemode:false,customer:s.customer,status:'active',cancel_at_period_end:false,latest_invoice:'in_fixture',items:{data:[{quantity:1,price:priceFor(config.stripePrices[planId])}]}};
    invoices.in_fixture={id:'in_fixture',livemode:false,parent:{subscription_details:{subscription:'sub_fixture'}},customer:s.customer,status:'paid',amount_paid:p.amountCents+100,total:p.amountCents+100,subtotal:p.amountCents,currency:'usd',total_discount_amounts:[],lines:[{amount:p.amountCents,quantity:1,pricing:{price_details:{price:config.stripePrices[planId]}},period:{end:now/1000+(p.interval==='year'?365:30)*86400}}]};}
   if(settle)await billing.event(event('checkout.session.completed',s));return s;
  }
