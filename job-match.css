@@ -1,6 +1,6 @@
 .jm-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
 .jm-grid label{display:block;font-weight:600;margin-bottom:8px}
-.jm-grid textarea{width:100%;min-height:340px;padding:16px;border:1px solid #c9cfe0;border-radius:12px;font:inherit;font-size:15px;line-height:1.5;background:#fff;resize:vertical}
+.jm-grid textarea{width:100%;min-height:340px;padding:16px;border:1px solid #c9cfe0;border-radius:12px;font:inherit;font-size:16px;line-height:1.5;background:#fff;resize:vertical}
 .jm-grid textarea:focus{outline:3px solid rgba(91,76,219,.18);border-color:#5b4cdb}
 .jm-actions{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:20px 0 6px}
 .jm-actions button.button{border:0;cursor:pointer}
