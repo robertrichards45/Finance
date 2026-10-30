@@ -94,3 +94,8 @@ body[data-page="sample"] .sample-form-panel .button{justify-self:start;margin-to
 .compare-head .us{color:#4b3fc4}
 .compare+.free-tools{padding-top:10px}
 @media(max-width:760px){.compare-row{grid-template-columns:1fr 1fr}.compare-row>span[role=rowheader]{grid-column:1/-1;padding-bottom:0}.compare-head>span:first-child{display:none}}
+
+.price-card.federal-band{grid-column:1/-1;display:grid;grid-template-columns:1.8fr 1fr;gap:28px;align-items:center;background:linear-gradient(120deg,#f4f2ff,#eef6ff);border-color:#d9d4fb}
+.federal-band h2,.federal-band h3{margin-top:4px}
+.price-card .federal-band-buy{border-left:1px solid #d9d4fb;padding-left:28px}
+@media(max-width:760px){.price-card.federal-band{grid-template-columns:1fr}.price-card .federal-band-buy{border-left:0;padding-left:0;border-top:1px solid #d9d4fb;padding-top:18px}}
