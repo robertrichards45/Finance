@@ -17,6 +17,7 @@ const crypto=require('node:crypto');
 const {importJob}=require('./lib/job-import');
 const {importResume}=require('./lib/resume-import');
 const {sendWeeklyReport}=require('./lib/weekly-report');
+const seo=require('./lib/seo');
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.txt':'text/plain; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8','.mp4':'video/mp4','.jpg':'image/jpeg','.png':'image/png'};
 const ROUTES={'/guides':'guides.html','/examples':'examples.html','/military-to-civilian-resume':'military-to-civilian-resume.html','/resume-employment-gaps':'resume-employment-gaps.html','/federal-police-resume':'federal-police-resume.html','/resume-readiness-checklist':'resume-readiness-checklist.html','/resume-readiness.js':'resume-readiness.js','/readiness.css':'readiness.css','/growth.css':'growth.css','/growth.js':'growth.js','/media/rough-duties.mp4':'media/rough-duties.mp4','/media/tailor-to-job.mp4':'media/tailor-to-job.mp4','/media/federal-two-pages.mp4':'media/federal-two-pages.mp4','/media/rough-duties.jpg':'media/rough-duties.jpg','/media/tailor-to-job.jpg':'media/tailor-to-job.jpg','/media/federal-two-pages.jpg':'media/federal-two-pages.jpg','/media/careerlaunch-share.png':'media/careerlaunch-share.png','/':'index.html','/index.html':'index.html','/start':'start.html','/portal':'portal.html','/admin':'admin.html','/services':'services.html','/cover-letter-guide':'cover-letter-guide.html','/resume-builder':'resume-builder.html','/federal-resume-guide':'federal-resume-guide.html','/federal':'federal.html','/private-sector':'private-sector.html','/contact':'contact.html','/policies':'policies.html','/privacy.html':'privacy.html','/terms.html':'terms.html','/templates':'templates.html','/templates.html':'templates.html','/templates.js':'templates.js','/site-assistant.js':'site-assistant.js','/advertising.js':'advertising.js','/guided-builder.js':'guided-builder.js','/builder-preview.js':'builder-preview.js','/order.html':'order.html','/order.js':'order.js','/app.js':'app.js','/styles.css':'styles.css','/robots.txt':'robots.txt','/sitemap.xml':'sitemap.xml','/mark.svg':'mark.svg'};
 function consistentSiteLayout(html){
@@ -26,7 +27,7 @@ function consistentSiteLayout(html){
  if(!result.includes('id="career-chat-toggle"'))result=result.replace(/<\/body>/i,chat+'</body>');
  if(!result.includes('src="/growth.js"'))result=result.replace(/<\/head>/i,'<script src="/growth.js" defer></script></head>');
  if(!result.includes('src="/site-assistant.js"'))result=result.replace(/<\/head>/i,'<script src="/site-assistant.js" defer></script></head>');
- return result;
+ return seo.decorate(result);
 }
 function allowedBrowserOrigin(req,config){
  const origin=req.headers.origin;
@@ -60,6 +61,8 @@ function createApp({config=configuration(),store,service,billing:billingOverride
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>131072)fail(413,'Webhook too large');chunks.push(chunk);}
     const event=billing.verify(Buffer.concat(chunks),req.headers['stripe-signature']);await billing.event(event);return send(200,{received:true});
    }
+   if(route==='/'+seo.INDEXNOW_KEY+'.txt'&&['GET','HEAD'].includes(req.method)){delete headers['X-Robots-Tag'];return send(200,seo.INDEXNOW_KEY,'text/plain; charset=utf-8');}
+   if(route==='/BingSiteAuth.xml'&&['GET','HEAD'].includes(req.method)){const xml=seo.bingSiteAuth();delete headers['X-Robots-Tag'];return send(xml?200:404,xml||'Not configured','application/xml; charset=utf-8');}
    if(route==='/ads.txt'&&['GET','HEAD'].includes(req.method)){const text=advertising.adsTxt(ads);return send(text?200:404,text||'Advertising is not configured.','text/plain; charset=utf-8');}
    if(route==='/health')return send(200,{status:'ok',service:'careerlaunch-ai',checkoutEnabled:Boolean(config.checkoutEnabled),intakeEnabled:config.enabled,readinessBlockers:config.blockers,backupStatus:store?.get('operations','backup')?.status||'pending',backupCreatedAt:store?.get('operations','backup')?.data.createdAt||null});
    if(route==='/api/config'){const qa=sandboxSession(service?.session(cookie(req)));return send(200,{intakeEnabled:Boolean(config.enabled||qa),sandboxTestAccess:Boolean(config.adminPreviewEnabled),checkoutEnabled:Boolean(config.checkoutEnabled||qa&&config.sandboxCheckoutEnabled),billingTestMode:!config.stripeLive,aiDraftsPerMonth:config.aiDraftsPerMonth,documentUploads:Boolean(config.clamavHost),retentionDays:config.retentionDays});}
@@ -144,5 +147,5 @@ function createApp({config=configuration(),store,service,billing:billingOverride
  server.service=service;server.billing=billing;return server;
 }
 const app=createApp();
-if(require.main===module){app.listen(Number(process.env.PORT)||3000,'0.0.0.0',()=>console.log('CareerLaunch AI is listening'));for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>app.close(()=>process.exit(0)));}
+if(require.main===module){app.listen(Number(process.env.PORT)||3000,'0.0.0.0',()=>{console.log('CareerLaunch AI is listening');const cfg=configuration();if(cfg.production&&process.env.INDEXNOW_DISABLED!=='true')setTimeout(()=>fs.readFile(path.join(__dirname,'sitemap.xml'),'utf8').then(xml=>seo.submitIndexNow(cfg.baseUrl,xml)).then(r=>console.log('IndexNow',r.status,r.count+' URLs')).catch(()=>{}),90000).unref();});for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>app.close(()=>process.exit(0)));}
 module.exports=app;module.exports.createApp=createApp;
