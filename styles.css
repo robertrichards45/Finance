@@ -81,3 +81,16 @@ body[data-page="sample"] .sample-form-panel .button{justify-self:start;margin-to
 .builder-step[hidden]{display:none!important}.builder-progress{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}.builder-progress button{flex:1;min-width:135px;padding:.7rem;border:1px solid #b6c3d3;border-radius:.6rem;background:#fff;color:#1d334f;cursor:pointer}.builder-progress [aria-current=step]{background:#173b61;color:white;border-color:#173b61}#intake-form progress{width:100%;height:.5rem;margin-bottom:1.5rem;accent-color:#173b61}.wizard-controls{margin-top:1rem;justify-content:space-between}.builder-step h2{scroll-margin-top:2rem}.writing-help{background:#eff5fb;padding:1rem;border-radius:.6rem;margin-bottom:1rem}.writing-help summary{cursor:pointer;font-weight:600}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #2469c8;outline-offset:3px}#save-status{font-weight:600}.order-list:empty{display:none}@media(max-width:600px){.builder-progress button{min-width:40%;font-size:.85rem}.wizard-controls button{min-height:44px;min-width:100px}.intake-form fieldset{min-width:0}.quick-start-options{display:grid;grid-template-columns:1fr}.site-header nav{overflow-x:auto;max-width:100%}.workspace{min-width:0}.builder-preview-paper{max-width:100%;overflow:hidden}input,textarea,select{font-size:16px}}
 
 .advertisement{margin:2rem auto;padding:1rem;text-align:center;overflow:hidden;border-top:1px solid #d9e2eb}.advertisement .adsbygoogle{display:block;min-height:100px}.advertisement:has(ins[data-ad-status="unfilled"]){display:none}@media print{.advertisement{display:none!important}}
+
+/* Comparison + free tools (homepage) */
+.compare-table{margin-top:26px;border:1px solid #e1e4ee;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 18px 50px -30px rgba(30,40,90,.35)}
+.compare-row{display:grid;grid-template-columns:1.1fr 1.6fr 1.6fr;border-top:1px solid #eceef5}
+.compare-row:first-child{border-top:0}
+.compare-row>span{padding:16px 20px;font-size:15px;line-height:1.45}
+.compare-row>span[role=rowheader]{font-weight:600;color:#1d2433}
+.compare-row>span:nth-child(2){color:#5b6275}
+.compare-row .us{background:linear-gradient(90deg,#f5f3ff,#f0f7ff);color:#1d2433;font-weight:600}
+.compare-head>span{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#6b7186;font-weight:700;padding-top:14px;padding-bottom:14px}
+.compare-head .us{color:#4b3fc4}
+.compare+.free-tools{padding-top:10px}
+@media(max-width:760px){.compare-row{grid-template-columns:1fr 1fr}.compare-row>span[role=rowheader]{grid-column:1/-1;padding-bottom:0}.compare-head>span:first-child{display:none}}

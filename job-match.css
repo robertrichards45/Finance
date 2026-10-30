@@ -1,0 +1,26 @@
+.jm-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
+.jm-grid label{display:block;font-weight:600;margin-bottom:8px}
+.jm-grid textarea{width:100%;min-height:340px;padding:16px;border:1px solid #c9cfe0;border-radius:12px;font:inherit;font-size:15px;line-height:1.5;background:#fff;resize:vertical}
+.jm-grid textarea:focus{outline:3px solid rgba(91,76,219,.18);border-color:#5b4cdb}
+.jm-actions{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:20px 0 6px}
+.jm-actions button.button{border:0;cursor:pointer}
+.jm-link{background:none;border:0;color:#4b3fc4;text-decoration:underline;cursor:pointer;font:inherit}
+.jm-result{margin-top:34px;border-top:1px solid #e3e5ef;padding-top:30px;max-width:980px}
+.jm-score{display:flex;gap:26px;align-items:center;margin-bottom:22px}
+.jm-score h2{margin:0 0 6px}
+.jm-ring{--p:0;--c:#5b4cdb;width:118px;height:118px;flex:0 0 118px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),#ebedf5 0)}
+.jm-ring strong{width:92px;height:92px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:28px}
+.jm-strong .jm-ring{--c:#1f8a5b}.jm-fair .jm-ring{--c:#c58a12}.jm-low .jm-ring{--c:#c2412d}
+.jm-chips{list-style:none;padding:0;margin:10px 0 14px;display:flex;flex-wrap:wrap;gap:8px}
+.jm-chips li{padding:6px 12px;border-radius:999px;font-size:14px;border:1px solid}
+.jm-miss li{background:#fff4ef;border-color:#f1c6b8;color:#8a2e1c}
+.jm-hit li{background:#eefaf3;border-color:#bfe6cf;color:#17603f}
+.jm-checks{list-style:none;padding:0;display:grid;gap:8px}
+.jm-checks li{padding:10px 14px;border-radius:10px;border-left:4px solid}
+.jm-checks .jm-ok{background:#eefaf3;border-color:#1f8a5b}.jm-checks .jm-warn{background:#fff8e8;border-color:#c58a12}.jm-checks .jm-tip{background:#f1f2fb;border-color:#5b4cdb}
+.jm-note{color:#4b5163;font-size:15px}
+.jm-cta{margin-top:28px;padding:22px 24px;border-radius:14px;background:linear-gradient(120deg,#f3f1ff,#eef7ff);display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}
+.jm-cta p{margin:0;font-weight:600}
+.jm-privacy{display:inline-flex;gap:8px;align-items:center;font-size:14px;color:#17603f;background:#eefaf3;border:1px solid #bfe6cf;padding:6px 12px;border-radius:999px}
+@media(max-width:760px){.jm-grid{grid-template-columns:1fr}.jm-grid textarea{min-height:220px}.jm-score{flex-direction:column;align-items:flex-start}}
+.jm-related{margin-top:22px}
