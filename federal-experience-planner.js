@@ -27,6 +27,7 @@
       event.preventDefault();
       const result=outline(),section=byId('fe-output-section');
       section.hidden=false;byId('fe-output').value=result.text;
+      if(result.count>0)document.dispatchEvent(new Event('growth:free-tool-completed'));
       section.scrollIntoView({block:'start',behavior:'smooth'});
     });
     byId('fe-clear').addEventListener('click',()=>{form.reset();byId('fe-output-section').hidden=true;byId('fe-copy-status').textContent='';});

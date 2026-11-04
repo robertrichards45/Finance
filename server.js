@@ -82,7 +82,7 @@ function createApp({config=configuration(),store,service,billing:billingOverride
    if(route==='/api/marketing-event'&&req.method==='POST'){
     if(!allowedBrowserOrigin(req,config))fail(403,'Request origin is not allowed.');
     if(!store)return send(204,'','text/plain');
-    const body=await jsonBody(req,100),event=body?.event;if(!['builder_cta','plan_selected'].includes(event))fail(400,'Unknown event.');
+    const body=await jsonBody(req,100),event=body?.event;if(!['builder_cta','plan_selected','free_tool_completed'].includes(event))fail(400,'Unknown event.');
     if(req.headers['sec-gpc']==='1')return send(204,'','text/plain');
     const visitor=String(req.headers.cookie||'').match(/(?:^|;\s*)cl_visitor=([a-f0-9]{32})(?:;|$)/)?.[1];
     if(visitor&&store.quota('marketing-global:'+new Date().toISOString().slice(0,10),2000,86400000)&&store.quota('marketing:'+crypto.createHash('sha256').update(visitor).digest('hex')+':'+event,1,86400000))telemetry.hit(store,event);
